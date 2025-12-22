@@ -77,7 +77,7 @@ npm install
 
 Create a PostgreSQL database:
 ```bash
-createdb sitetrackr
+create database sitetrackr
 ```
 
 Configure environment variables in `apps/api/.env`:
@@ -99,7 +99,7 @@ The database will automatically create a demo company and admin user on first ru
 - **Company ID**: `11111111-1111-1111-1111-111111111111`
 - **Admin User**: `00000000-0000-0000-0000-000000000001`
 - **Email**: `admin@demo.com`
-- **Password**: Check the seed script or auth plugin
+- **Password**: `change-me`
 
 ## 🚀 Running the Application
 
