@@ -1,0 +1,180 @@
+import { useState, useEffect } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { Card } from '../../../components/common/Card';
+import { Button } from '../../../components/common/Button';
+import { listTickets, TicketStatus } from '../api/ticketsApi';
+
+const statusColors: Record<TicketStatus, string> = {
+  OPEN: '#3b82f6',
+  IN_PROGRESS: '#f59e0b',
+  COMPLETED: '#10b981',
+  CANCELLED: '#6b7280'
+};
+
+const priorityColors: Record<string, string> = {
+  LOW: '#6b7280',
+  NORMAL: '#3b82f6',
+  HIGH: '#f59e0b',
+  URGENT: '#dc2626'
+};
+
+export const TicketsListPage = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [page, setPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState<TicketStatus | undefined>(() => {
+    const status = searchParams.get('status');
+    return status && ['OPEN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'].includes(status)
+      ? (status as TicketStatus)
+      : undefined;
+  });
+  const pageSize = 20;
+
+  useEffect(() => {
+    if (statusFilter) {
+      setSearchParams({ status: statusFilter });
+    } else {
+      setSearchParams({});
+    }
+  }, [statusFilter, setSearchParams]);
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['tickets', page, pageSize, statusFilter],
+    queryFn: () => listTickets({ page, pageSize, status: statusFilter })
+  });
+
+  if (isLoading) {
+    return <div>Loading tickets...</div>;
+  }
+
+  if (isError) {
+    return <div>Failed to load tickets. Please try again.</div>;
+  }
+
+  const tickets = data?.data || [];
+  const meta = data?.meta;
+  const totalPages = meta ? Math.ceil(meta.total / meta.pageSize) : 1;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h2 style={{ margin: 0 }}>Tickets</h2>
+        <Link to="/tickets/new" style={{ textDecoration: 'none' }}>
+          <Button>New Ticket</Button>
+        </Link>
+      </div>
+
+      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <button
+          onClick={() => setStatusFilter(undefined)}
+          style={{
+            padding: '0.5rem 1rem',
+            borderRadius: '0.5rem',
+            border: !statusFilter ? '2px solid #3b82f6' : '1px solid #d0d5dd',
+            background: !statusFilter ? '#eff6ff' : 'white',
+            cursor: 'pointer',
+            fontWeight: !statusFilter ? 600 : 400
+          }}
+        >
+          All
+        </button>
+        {(['OPEN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'] as TicketStatus[]).map((status) => (
+          <button
+            key={status}
+            onClick={() => setStatusFilter(status)}
+            style={{
+              padding: '0.5rem 1rem',
+              borderRadius: '0.5rem',
+              border: statusFilter === status ? '2px solid #3b82f6' : '1px solid #d0d5dd',
+              background: statusFilter === status ? '#eff6ff' : 'white',
+              cursor: 'pointer',
+              fontWeight: statusFilter === status ? 600 : 400
+            }}
+          >
+            {status.replace('_', ' ')}
+          </button>
+        ))}
+      </div>
+
+      {tickets.length > 0 ? (
+        <>
+          {tickets.map((ticket) => (
+            <Link key={ticket.id} to={`/tickets/${ticket.id}`} style={{ textDecoration: 'none' }}>
+              <Card>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.5rem' }}>
+                  <strong style={{ fontSize: '1.1rem' }}>{ticket.summary}</strong>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <span
+                      style={{
+                        padding: '0.25rem 0.75rem',
+                        borderRadius: '9999px',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        color: 'white',
+                        background: statusColors[ticket.status]
+                      }}
+                    >
+                      {ticket.status.replace('_', ' ')}
+                    </span>
+                    <span
+                      style={{
+                        padding: '0.25rem 0.75rem',
+                        borderRadius: '9999px',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        color: 'white',
+                        background: priorityColors[ticket.priority]
+                      }}
+                    >
+                      {ticket.priority}
+                    </span>
+                  </div>
+                </div>
+                <div style={{ color: '#475467', fontSize: '0.95rem' }}>
+                  <div>
+                    <strong>Site:</strong> {ticket.site.name}
+                    {ticket.site.code && ` (${ticket.site.code})`}
+                    {(ticket.site.city || ticket.site.state) && (
+                      <span> - {[ticket.site.city, ticket.site.state].filter(Boolean).join(', ')}</span>
+                    )}
+                  </div>
+                  {ticket.asset && (
+                    <div>
+                      <strong>Asset:</strong> {ticket.asset.type}
+                      {ticket.asset.tag && ` - ${ticket.asset.tag}`}
+                    </div>
+                  )}
+                  <div style={{ marginTop: '0.25rem', fontSize: '0.875rem', color: '#6b7280' }}>
+                    Created {new Date(ticket.createdAt).toLocaleDateString()}
+                  </div>
+                </div>
+              </Card>
+            </Link>
+          ))}
+
+          {totalPages > 1 && (
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', marginTop: '1rem' }}>
+              <Button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+              >
+                Previous
+              </Button>
+              <span style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center' }}>
+                Page {page} of {totalPages}
+              </span>
+              <Button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+              >
+                Next
+              </Button>
+            </div>
+          )}
+        </>
+      ) : (
+        <Card>No tickets found{statusFilter ? ` with status ${statusFilter.replace('_', ' ')}` : ''}.</Card>
+      )}
+    </div>
+  );
+};

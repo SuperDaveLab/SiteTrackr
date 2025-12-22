@@ -1,0 +1,352 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id          String                @id @default(uuid())
+  name        String
+  slug        String                @unique
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  assets      Asset[]
+  attachments Attachment[]
+  sites       Site[]
+  siteFields  SiteFieldDefinition[]
+  siteOwners  SiteOwner[]
+  tickets     Ticket[]
+  templates   TicketTemplate[]
+  users       User[]
+}
+
+model User {
+  id                String                     @id @default(uuid())
+  companyId         String
+  email             String                     @unique
+  passwordHash      String
+  role              UserRole                   @default(TECH)
+  displayName       String
+  isActive          Boolean                    @default(true)
+  createdAt         DateTime                   @default(now())
+  updatedAt         DateTime                   @updatedAt
+  attachments       Attachment[]               @relation("AttachmentsUploadedBy")
+  technicianProfile TechnicianProfile?
+  assignedTickets   Ticket[]                   @relation("TicketsAssignedTo")
+  createdTickets    Ticket[]                   @relation("TicketsCreatedBy")
+  activities        TicketActivity[]           @relation("TicketActivities")
+  company           Company                    @relation(fields: [companyId], references: [id])
+  siteOwnerAccess   UserSiteOwnerAccess[]
+  templateAccess    UserTicketTemplateAccess[]
+  visits            Visit[]
+
+  @@index([companyId])
+}
+
+model TechnicianProfile {
+  id      String  @id @default(uuid())
+  userId  String  @unique
+  badgeId String?
+  phone   String?
+  skills  Json?
+  user    User    @relation(fields: [userId], references: [id])
+}
+
+model SiteOwner {
+  id         String                @id @default(uuid())
+  companyId  String
+  name       String
+  code       String
+  notes      String?
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
+  sites      Site[]
+  fieldDefs  SiteFieldDefinition[]
+  company    Company               @relation(fields: [companyId], references: [id])
+  userAccess UserSiteOwnerAccess[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+}
+
+model Site {
+  id            String     @id @default(uuid())
+  companyId     String
+  siteOwnerId   String?
+  name          String
+  code          String?
+  latitude      Float?
+  longitude     Float?
+  addressLine1  String?
+  addressLine2  String?
+  city          String?
+  state         String?
+  postalCode    String?
+  notes         String?
+  customFields  Json?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  county        String?
+  equipmentType String?
+  marketName    String?
+  towerType     String?
+  assets        Asset[]
+  company       Company    @relation(fields: [companyId], references: [id])
+  owner         SiteOwner? @relation(fields: [siteOwnerId], references: [id])
+  tickets       Ticket[]
+
+  @@index([companyId])
+  @@index([companyId, siteOwnerId])
+}
+
+model Asset {
+  id        String      @id @default(uuid())
+  companyId String
+  siteId    String
+  type      String
+  model     String?
+  serial    String?
+  tag       String?
+  status    AssetStatus @default(ACTIVE)
+  metadata  Json?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  company   Company     @relation(fields: [companyId], references: [id])
+  site      Site        @relation(fields: [siteId], references: [id])
+  tickets   Ticket[]
+
+  @@index([companyId])
+  @@index([companyId, siteId])
+}
+
+model TicketTemplate {
+  id          String                     @id @default(uuid())
+  companyId   String
+  name        String
+  code        String
+  description String?
+  isActive    Boolean                    @default(true)
+  version     Int                        @default(1)
+  createdAt   DateTime                   @default(now())
+  updatedAt   DateTime                   @updatedAt
+  tickets     Ticket[]
+  company     Company                    @relation(fields: [companyId], references: [id])
+  fields      TicketTemplateField[]
+  userAccess  UserTicketTemplateAccess[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+}
+
+model TicketTemplateField {
+  id           String            @id @default(uuid())
+  templateId   String
+  key          String
+  label        String
+  type         TemplateFieldType
+  required     Boolean           @default(false)
+  orderIndex   Int               @default(0)
+  config       Json?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  section      String?
+  sectionOrder Int               @default(0)
+  template     TicketTemplate    @relation(fields: [templateId], references: [id])
+
+  @@unique([templateId, key])
+  @@index([templateId])
+}
+
+model SiteFieldDefinition {
+  id          String            @id @default(uuid())
+  companyId   String
+  siteOwnerId String?
+  key         String
+  label       String
+  type        TemplateFieldType
+  required    Boolean           @default(false)
+  orderIndex  Int               @default(0)
+  config      Json?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  company     Company           @relation(fields: [companyId], references: [id])
+  owner       SiteOwner?        @relation(fields: [siteOwnerId], references: [id])
+
+  @@unique([companyId, siteOwnerId, key])
+  @@index([companyId])
+  @@index([companyId, siteOwnerId])
+}
+
+model Ticket {
+  id               String           @id @default(uuid())
+  companyId        String
+  templateId       String
+  siteId           String
+  assetId          String?
+  createdByUserId  String
+  assignedToUserId String?
+  status           TicketStatus     @default(OPEN)
+  priority         TicketPriority   @default(NORMAL)
+  summary          String
+  description      String?
+  scheduledStartAt DateTime?
+  scheduledEndAt   DateTime?
+  customFields     Json?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  attachments      Attachment[]
+  asset            Asset?           @relation(fields: [assetId], references: [id])
+  assignedTo       User?            @relation("TicketsAssignedTo", fields: [assignedToUserId], references: [id])
+  company          Company          @relation(fields: [companyId], references: [id])
+  createdBy        User             @relation("TicketsCreatedBy", fields: [createdByUserId], references: [id])
+  site             Site             @relation(fields: [siteId], references: [id])
+  template         TicketTemplate   @relation(fields: [templateId], references: [id])
+  activities       TicketActivity[]
+  visits           Visit[]
+
+  @@index([companyId])
+  @@index([companyId, siteId])
+  @@index([companyId, assetId])
+  @@index([companyId, status])
+  @@index([companyId, assignedToUserId])
+}
+
+model TicketActivity {
+  id         String   @id @default(uuid())
+  ticketId   String
+  userId     String
+  action     String
+  fieldKey   String?
+  fieldLabel String?
+  oldValue   String?
+  newValue   String?
+  createdAt  DateTime @default(now())
+  ticket     Ticket   @relation(fields: [ticketId], references: [id])
+  user       User     @relation("TicketActivities", fields: [userId], references: [id])
+
+  @@index([ticketId])
+  @@index([userId])
+}
+
+model Visit {
+  id               String       @id @default(uuid())
+  ticketId         String
+  technicianUserId String
+  startedAt        DateTime
+  endedAt          DateTime?
+  notes            String?
+  location         Json?
+  readings         Json?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  attachments      Attachment[]
+  technician       User         @relation(fields: [technicianUserId], references: [id])
+  ticket           Ticket       @relation(fields: [ticketId], references: [id])
+
+  @@index([ticketId])
+  @@index([technicianUserId])
+}
+
+model Attachment {
+  id               String         @id @default(uuid())
+  companyId        String
+  ticketId         String
+  visitId          String?
+  uploadedByUserId String
+  type             AttachmentType @default(PHOTO)
+  filename         String
+  displayName      String
+  mimeType         String
+  sizeBytes        Int
+  storageKey       String
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  company          Company        @relation(fields: [companyId], references: [id])
+  ticket           Ticket         @relation(fields: [ticketId], references: [id])
+  uploadedBy       User           @relation("AttachmentsUploadedBy", fields: [uploadedByUserId], references: [id])
+  visit            Visit?         @relation(fields: [visitId], references: [id])
+
+  @@index([companyId])
+  @@index([ticketId])
+  @@index([visitId])
+}
+
+model UserSiteOwnerAccess {
+  id          String      @id @default(uuid())
+  userId      String
+  siteOwnerId String
+  accessLevel AccessLevel @default(VIEW)
+  siteOwner   SiteOwner   @relation(fields: [siteOwnerId], references: [id])
+  user        User        @relation(fields: [userId], references: [id])
+
+  @@unique([userId, siteOwnerId])
+  @@index([userId])
+  @@index([siteOwnerId])
+}
+
+model UserTicketTemplateAccess {
+  id               String         @id @default(uuid())
+  userId           String
+  ticketTemplateId String
+  accessLevel      AccessLevel    @default(VIEW)
+  ticketTemplate   TicketTemplate @relation(fields: [ticketTemplateId], references: [id])
+  user             User           @relation(fields: [userId], references: [id])
+
+  @@unique([userId, ticketTemplateId])
+  @@index([userId])
+  @@index([ticketTemplateId])
+}
+
+enum UserRole {
+  ADMIN
+  DISPATCHER
+  TECH
+}
+
+enum AccessLevel {
+  VIEW
+  ADMIN
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum TicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum TemplateFieldType {
+  TEXT
+  TEXTAREA
+  NUMBER
+  BOOLEAN
+  SELECT
+  MULTI_SELECT
+  DATE
+  TIME
+  DATETIME
+  PHOTO_REF
+  READING
+}
+
+enum AttachmentType {
+  PHOTO
+  DOCUMENT
+  OTHER
+}
+
+enum AssetStatus {
+  ACTIVE
+  INACTIVE
+  RETIRED
+}

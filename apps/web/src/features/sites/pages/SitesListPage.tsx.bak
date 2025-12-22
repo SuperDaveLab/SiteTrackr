@@ -1,0 +1,54 @@
+import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { Card } from '../../../components/common/Card';
+import { fetchSites } from '../api/sitesApi';
+
+export const SitesListPage = () => {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['sites', { page: 1, pageSize: 10 }],
+    queryFn: () => fetchSites({ page: 1, pageSize: 10 })
+  });
+
+  if (isLoading) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <h2 style={{ margin: 0 }}>Sites</h2>
+        <p>Loading sites...</p>
+      </div>
+    );
+  }
+
+  if (isError || !data) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <h2 style={{ margin: 0 }}>Sites</h2>
+        <p>Failed to load sites.</p>
+      </div>
+    );
+  }
+
+  if (data.data.length === 0) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <h2 style={{ margin: 0 }}>Sites</h2>
+        <p>No sites found.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <h2 style={{ margin: 0 }}>Sites</h2>
+      {data.data.map((site) => (
+        <Link key={site.id} to={`/sites/${site.id}`} style={{ textDecoration: 'none' }}>
+          <Card>
+            <strong>{site.name}</strong>
+            <p style={{ margin: '0.35rem 0 0', color: '#475467' }}>
+              {site.city && site.state ? `${site.city}, ${site.state}` : site.city || site.state || 'No location'}
+            </p>
+          </Card>
+        </Link>
+      ))}
+    </div>
+  );
+};
