@@ -18,6 +18,7 @@ import ticketsRoutes from './modules/tickets/tickets.routes';
 import visitsRoutes from './modules/visits/visits.routes';
 import { usersRoutes } from './modules/users/users.routes';
 import { attachmentsRoutes } from './modules/attachments/attachments.routes';
+import { adminImportExportRoutes } from './modules/adminImportExport/adminImportExport.routes';
 
 export const buildApp = (): FastifyInstance => {
   const app = Fastify({
@@ -73,6 +74,7 @@ export const buildApp = (): FastifyInstance => {
     instance.register(visitsRoutes);
     instance.register(usersRoutes, { prefix: '/users' });
     instance.register(attachmentsRoutes);
+    instance.register(adminImportExportRoutes);
   }, { prefix: '/api/v1' });
 
   app.setErrorHandler((error, request, reply) => {

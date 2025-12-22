@@ -18,6 +18,7 @@ import { UserDetailPage } from './features/users/pages/UserDetailPage';
 import { UserCreatePage } from './features/users/pages/UserCreatePage';
 import { VisitDetailPage } from './features/visits/pages/VisitDetailPage';
 import { ProfilePage } from './features/profile/pages/ProfilePage';
+import AdminImportExportPage from './features/admin/AdminImportExportPage';
 import { AppLayout } from './components/layout/AppLayout';
 import { useAuth } from './features/auth/hooks/useAuth';
 
@@ -60,7 +61,8 @@ export const router = createBrowserRouter([
           { path: 'site-owners/:siteOwnerId/fields', element: <SiteOwnerFieldsPage /> },
           { path: 'users', element: <UsersListPage /> },
           { path: 'users/new', element: <UserCreatePage /> },
-          { path: 'users/:userId', element: <UserDetailPage /> }
+          { path: 'users/:userId', element: <UserDetailPage /> },
+          { path: 'import-export', element: <AdminImportExportPage /> }
         ]
       }
     ]

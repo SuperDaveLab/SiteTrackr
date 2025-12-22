@@ -4,6 +4,7 @@ import archiver from 'archiver';
 import path from 'path';
 import fs from 'fs';
 import { isGlobalAdmin } from '../auth/permissions';
+import { generateNextTicketNumber } from './ticketNumber.service';
 import {
   CreateTicketBody,
   createTicketBodySchema,
@@ -82,6 +83,8 @@ export class TicketsController {
     }
 
     try {
+      const ticketNumber = await generateNextTicketNumber(this.fastify);
+      
       const ticket = await this.fastify.prisma.ticket.create({
         data: {
           companyId: user.companyId,
@@ -89,6 +92,7 @@ export class TicketsController {
           siteId: site.id,
           assetId,
           createdByUserId: user.id,
+          ticketNumber,
           summary: body.summary,
           description: body.description ?? null,
           priority: body.priority ?? TicketPriority.NORMAL,

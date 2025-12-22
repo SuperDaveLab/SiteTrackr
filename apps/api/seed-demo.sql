@@ -9,6 +9,15 @@ VALUES (
 )
 ON CONFLICT (id) DO NOTHING;
 
+-- Insert global counter if not exists
+INSERT INTO "GlobalCounter" (id, "ticketNext", "updatedAt")
+VALUES (
+  'global',
+  1,
+  NOW()
+)
+ON CONFLICT (id) DO NOTHING;
+
 -- Insert demo user if not exists
 INSERT INTO "User" (id, "companyId", email, "passwordHash", role, "displayName", "isActive", "createdAt", "updatedAt")
 VALUES (

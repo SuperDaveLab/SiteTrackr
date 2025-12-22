@@ -20,6 +20,7 @@ A comprehensive field operations management platform for tracking work orders, s
 - **📱 Offline-First Architecture** - IndexedDB caching for offline access (in progress)
 - **🔐 Secure Authentication** - JWT-based authentication with role-based permissions (ADMIN, MANAGER, TECH)
 - **📥 Bulk Downloads** - Download all attachments as ZIP archives
+- **📤 Admin Import/Export** - CSV-based bulk import/export for Site Owners, Sites, Ticket Templates, and Tickets with custom field support
 
 ## 🛠️ Tech Stack
 
@@ -157,6 +158,7 @@ SiteTrackr/
 │   │   │   │   ├── sites/      # Site management
 │   │   │   │   ├── visits/     # Visit logging
 │   │   │   │   ├── assets/     # Asset tracking
+│   │   │   │   ├── adminImportExport/ # CSV import/export
 │   │   │   │   └── ...
 │   │   │   ├── plugins/        # Fastify plugins
 │   │   │   └── index.ts        # API entry point
@@ -169,6 +171,7 @@ SiteTrackr/
 │       │   │   ├── tickets/    # Ticket pages & API
 │       │   │   ├── sites/      # Site pages & API
 │       │   │   ├── visits/     # Visit pages & API
+│       │   │   ├── admin/      # Admin import/export
 │       │   │   └── ...
 │       │   ├── components/     # Shared components
 │       │   │   ├── common/     # Button, Input, Card
@@ -206,10 +209,25 @@ Define reusable templates with custom fields:
 - Bulk download as ZIP
 
 ### Role-Based Access Control
-- **ADMIN**: Full system access
+- **ADMIN**: Full system access including import/export
 - **MANAGER**: Limited administrative access
 - **TECH**: Field technician access
 - Site owner-based filtering for non-admin users
+
+### Admin Import/Export
+**CSV-based bulk data management** (Admin only):
+- **Site Owners**: Export/import owner definitions with custom field schemas using `field:key:label` column format
+- **Sites**: Export/import sites with owner assignments and custom field values using `cf:fieldKey` column format
+- **Ticket Templates**: Export/import templates with field definitions and sections using `field:key:label` column format
+- **Tickets**: Export/import tickets with template assignments and custom field values using `cf:fieldKey` column format
+
+**Key Features:**
+- **UPSERT Logic**: Intelligently creates new records or updates existing ones based on ID, external ID, or unique identifiers
+- **Row Validation**: Detailed error reporting with row numbers and field-specific errors
+- **Custom Field Support**: Import/export custom field definitions and values using special column naming conventions
+- **Reference Validation**: Validates relationships (e.g., siteOwnerId, templateId) and provides clear error messages
+- **Automatic Ticket Numbering**: Generates globally unique ticket numbers (ST00001, ST00002, etc.) when not provided
+- **No Destructive Actions**: Import only creates or updates records; never deletes existing data
 
 ## 🔒 Security
 
@@ -253,6 +271,16 @@ http://localhost:3001/api/v1
 - `POST /tickets/:ticketId/attachments` - Upload ticket-level attachment
 - `GET /uploads/:companyId/:filename` - Retrieve file
 
+**Admin Import/Export:**
+- `POST /admin/import/site-owners` - Import Site Owners from CSV
+- `GET /admin/export/site-owners` - Export Site Owners to CSV
+- `POST /admin/import/sites` - Import Sites from CSV
+- `GET /admin/export/sites` - Export Sites to CSV
+- `POST /admin/import/ticket-templates` - Import Ticket Templates from CSV
+- `GET /admin/export/ticket-templates` - Export Ticket Templates to CSV
+- `POST /admin/import/tickets` - Import Tickets from CSV
+- `GET /admin/export/tickets` - Export Tickets to CSV
+
 ## 🧪 Testing
 
 ```bash
@@ -267,6 +295,8 @@ npm test
 
 ## 🚧 Roadmap
 
+- [x] Admin CSV Import/Export
+- [ ] Excel (XLSX) import/export support
 - [ ] Mobile app (React Native)
 - [ ] Offline-first sync engine
 - [ ] Real-time notifications
@@ -296,6 +326,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Column visibility preferences stored in browser localStorage
 - Search queries debounced at 300ms
 - Default page size: 25 items
+- CSV import/export uses `csv-parse` and `csv-stringify` libraries
+- Ticket numbers are globally unique with format ST00001-ST99999
+- Custom fields support both field definitions (`field:key:label`) and values (`cf:key`) in CSV imports
 
 ## 🐛 Known Issues
 

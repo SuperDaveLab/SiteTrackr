@@ -23,6 +23,12 @@ model Company {
   users       User[]
 }
 
+model GlobalCounter {
+  id         String   @id @default("global")
+  ticketNext Int      @default(1)
+  updatedAt  DateTime @updatedAt
+}
+
 model User {
   id                String                     @id @default(uuid())
   companyId         String
@@ -188,6 +194,8 @@ model Ticket {
   assetId          String?
   createdByUserId  String
   assignedToUserId String?
+  ticketNumber     String           @unique
+  externalId       String?
   status           TicketStatus     @default(OPEN)
   priority         TicketPriority   @default(NORMAL)
   summary          String
@@ -207,6 +215,7 @@ model Ticket {
   activities       TicketActivity[]
   visits           Visit[]
 
+  @@unique([companyId, externalId])
   @@index([companyId])
   @@index([companyId, siteId])
   @@index([companyId, assetId])

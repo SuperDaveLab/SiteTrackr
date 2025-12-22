@@ -47,7 +47,10 @@ psql "$DB_BASE_URL" -c "CREATE DATABASE \"$DB_NAME\";"
 
 pushd "$API_DIR" >/dev/null
 npm run prisma:migrate --silent
-psql "$DATABASE_URL" -f "$SEED_FILE"
+
+# Strip query parameters from DATABASE_URL for psql
+SEED_DB_URL="${CLEAN_URL}"
+psql "$SEED_DB_URL" -f "$SEED_FILE"
 popd >/dev/null
 
 echo "Database '$DB_NAME' has been recreated and seeded."

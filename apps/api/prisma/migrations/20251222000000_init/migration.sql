@@ -31,6 +31,15 @@ CREATE TABLE "Company" (
 );
 
 -- CreateTable
+CREATE TABLE "GlobalCounter" (
+    "id" TEXT NOT NULL DEFAULT 'global',
+    "ticketNext" INTEGER NOT NULL DEFAULT 1,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "GlobalCounter_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
     "companyId" TEXT NOT NULL,
@@ -185,6 +194,8 @@ CREATE TABLE "SiteFieldDefinition" (
 -- CreateTable
 CREATE TABLE "Ticket" (
     "id" TEXT NOT NULL,
+    "ticketNumber" TEXT NOT NULL,
+    "externalId" TEXT,
     "companyId" TEXT NOT NULL,
     "templateId" TEXT NOT NULL,
     "siteId" TEXT NOT NULL,
@@ -336,6 +347,12 @@ CREATE INDEX "Ticket_companyId_assetId_idx" ON "Ticket"("companyId", "assetId");
 CREATE INDEX "Ticket_companyId_status_idx" ON "Ticket"("companyId", "status");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Ticket_ticketNumber_key" ON "Ticket"("ticketNumber");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Ticket_companyId_externalId_key" ON "Ticket"("companyId", "externalId");
+
+-- CreateIndex
 CREATE INDEX "Ticket_companyId_assignedToUserId_idx" ON "Ticket"("companyId", "assignedToUserId");
 
 -- CreateIndex
@@ -445,3 +462,6 @@ ALTER TABLE "Attachment" ADD CONSTRAINT "Attachment_visitId_fkey" FOREIGN KEY ("
 
 -- AddForeignKey
 ALTER TABLE "Attachment" ADD CONSTRAINT "Attachment_uploadedByUserId_fkey" FOREIGN KEY ("uploadedByUserId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+

@@ -13,7 +13,8 @@ const navItems = [
 const adminNavItems = [
   { path: '/admin/templates', label: 'Templates', icon: '📋', roles: ['ADMIN'] },
   { path: '/admin/site-owners', label: 'Site Owners', icon: '🏢', roles: ['ADMIN'] },
-  { path: '/admin/users', label: 'Users', icon: '👥', roles: ['ADMIN'] }
+  { path: '/admin/users', label: 'Users', icon: '👥', roles: ['ADMIN'] },
+  { path: '/admin/import-export', label: 'Import/Export', icon: '📥', roles: ['ADMIN'] }
 ];
 
 export const AppLayout = () => {
