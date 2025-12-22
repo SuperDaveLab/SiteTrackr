@@ -1,31 +1,149 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card } from '../../../components/common/Card';
 import { Button } from '../../../components/common/Button';
 import { Input } from '../../../components/common/Input';
 import { fetchSiteById, updateSite } from '../api/sitesApi';
+import { useAuth } from '../../auth/hooks/useAuth';
+import { listSiteOwners } from '../../siteOwners/api/siteOwnersApi';
+
+type SiteFormState = {
+  name: string;
+  code: string;
+  marketName: string;
+  siteOwnerId: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  state: string;
+  county: string;
+  postalCode: string;
+  latitude: string;
+  longitude: string;
+  equipmentType: string;
+  towerType: string;
+  notes: string;
+};
+
+const defaultSiteFormState: SiteFormState = {
+  name: '',
+  code: '',
+  marketName: '',
+  siteOwnerId: '',
+  addressLine1: '',
+  addressLine2: '',
+  city: '',
+  state: '',
+  county: '',
+  postalCode: '',
+  latitude: '',
+  longitude: '',
+  equipmentType: '',
+  towerType: '',
+  notes: ''
+};
+
+const normalizeNullable = (value: string): string | null => {
+  const trimmed = value.trim();
+  return trimmed.length === 0 ? null : trimmed;
+};
+
+const normalizeMultilineNullable = (value: string): string | null => {
+  return value.trim().length === 0 ? null : value;
+};
+
+const parseCoordinate = (value: string): number | null => {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const parsed = Number(trimmed);
+  return Number.isNaN(parsed) ? null : parsed;
+};
 
 export const SiteDetailPage = () => {
   const { siteId } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
   const [customFields, setCustomFields] = useState<Record<string, unknown>>({});
+  const [siteForm, setSiteForm] = useState<SiteFormState>(defaultSiteFormState);
 
   const { data: site, isLoading, isError } = useQuery({
     queryKey: ['site', siteId],
     queryFn: () => fetchSiteById(siteId!)
   });
 
-  // Initialize custom fields when site loads
-  useState(() => {
-    if (site?.customFields) {
-      setCustomFields(site.customFields);
+  const { data: siteOwners } = useQuery({
+    queryKey: ['siteOwners'],
+    queryFn: listSiteOwners,
+    enabled: isAdmin
+  });
+
+  useEffect(() => {
+    if (!site) {
+      return;
+    }
+    setCustomFields(site.customFields ?? {});
+    setSiteForm({
+      name: site.name ?? '',
+      code: site.code ?? '',
+      marketName: site.marketName ?? '',
+      siteOwnerId: site.owner?.id ?? '',
+      addressLine1: site.addressLine1 ?? '',
+      addressLine2: site.addressLine2 ?? '',
+      city: site.city ?? '',
+      state: site.state ?? '',
+      county: site.county ?? '',
+      postalCode: site.postalCode ?? '',
+      latitude: site.latitude !== null && site.latitude !== undefined ? String(site.latitude) : '',
+      longitude: site.longitude !== null && site.longitude !== undefined ? String(site.longitude) : '',
+      equipmentType: site.equipmentType ?? '',
+      towerType: site.towerType ?? '',
+      notes: site.notes ?? ''
+    });
+  }, [site]);
+
+  const ownerOptions = siteOwners ?? [];
+
+  const handleSiteFormChange = (field: keyof SiteFormState, value: string) => {
+    setSiteForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSiteDetailsSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    if (!siteId) {
+      return;
+    }
+
+    updateSiteDetailsMutation.mutate({
+      name: siteForm.name.trim(),
+      code: normalizeNullable(siteForm.code),
+      marketName: normalizeNullable(siteForm.marketName),
+      siteOwnerId: siteForm.siteOwnerId ? siteForm.siteOwnerId : null,
+      addressLine1: normalizeNullable(siteForm.addressLine1),
+      addressLine2: normalizeNullable(siteForm.addressLine2),
+      city: normalizeNullable(siteForm.city),
+      state: normalizeNullable(siteForm.state),
+      county: normalizeNullable(siteForm.county),
+      postalCode: normalizeNullable(siteForm.postalCode),
+      latitude: parseCoordinate(siteForm.latitude),
+      longitude: parseCoordinate(siteForm.longitude),
+      equipmentType: normalizeNullable(siteForm.equipmentType),
+      towerType: normalizeNullable(siteForm.towerType),
+      notes: normalizeMultilineNullable(siteForm.notes)
+    });
+  };
+
+  const updateCustomFieldsMutation = useMutation({
+    mutationFn: (fields: Record<string, unknown>) => updateSite(siteId!, { customFields: fields }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['site', siteId] });
     }
   });
 
-  const updateFieldsMutation = useMutation({
-    mutationFn: (fields: Record<string, unknown>) => updateSite(siteId!, { customFields: fields }),
+  const updateSiteDetailsMutation = useMutation({
+    mutationFn: (payload: Parameters<typeof updateSite>[1]) => updateSite(siteId!, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['site', siteId] });
     }
@@ -206,6 +324,135 @@ export const SiteDetailPage = () => {
         <Button onClick={handleNewTicket}>New Ticket</Button>
       </div>
 
+      {isAdmin && (
+        <Card>
+          <h3 style={{ marginTop: 0 }}>Edit Site (Admin)</h3>
+          <form onSubmit={handleSiteDetailsSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+                gap: '0.75rem'
+              }}
+            >
+              <Input
+                label="Site Name *"
+                value={siteForm.name}
+                onChange={(e) => handleSiteFormChange('name', e.target.value)}
+                required
+              />
+              <Input
+                label="Site Code"
+                value={siteForm.code}
+                onChange={(e) => handleSiteFormChange('code', e.target.value)}
+              />
+              <Input
+                label="Market Name"
+                value={siteForm.marketName}
+                onChange={(e) => handleSiteFormChange('marketName', e.target.value)}
+              />
+              <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: '0.95rem', color: '#1d2939' }}>
+                Site Owner
+                <select
+                  value={siteForm.siteOwnerId}
+                  onChange={(e) => handleSiteFormChange('siteOwnerId', e.target.value)}
+                  style={{
+                    padding: '0.85rem 1rem',
+                    borderRadius: '0.75rem',
+                    border: '1px solid #d0d5dd',
+                    fontSize: '1rem'
+                  }}
+                >
+                  <option value="">Unassigned</option>
+                  {ownerOptions.map((owner) => (
+                    <option key={owner.id} value={owner.id}>
+                      {owner.name} {owner.code && `(${owner.code})`}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <Input
+                label="Address Line 1"
+                value={siteForm.addressLine1}
+                onChange={(e) => handleSiteFormChange('addressLine1', e.target.value)}
+              />
+              <Input
+                label="Address Line 2"
+                value={siteForm.addressLine2}
+                onChange={(e) => handleSiteFormChange('addressLine2', e.target.value)}
+              />
+              <Input
+                label="City"
+                value={siteForm.city}
+                onChange={(e) => handleSiteFormChange('city', e.target.value)}
+              />
+              <Input
+                label="State"
+                value={siteForm.state}
+                onChange={(e) => handleSiteFormChange('state', e.target.value)}
+              />
+              <Input
+                label="County"
+                value={siteForm.county}
+                onChange={(e) => handleSiteFormChange('county', e.target.value)}
+              />
+              <Input
+                label="Postal Code"
+                value={siteForm.postalCode}
+                onChange={(e) => handleSiteFormChange('postalCode', e.target.value)}
+              />
+              <Input
+                label="Latitude"
+                type="number"
+                step="any"
+                value={siteForm.latitude}
+                onChange={(e) => handleSiteFormChange('latitude', e.target.value)}
+              />
+              <Input
+                label="Longitude"
+                type="number"
+                step="any"
+                value={siteForm.longitude}
+                onChange={(e) => handleSiteFormChange('longitude', e.target.value)}
+              />
+              <Input
+                label="Equipment Type"
+                value={siteForm.equipmentType}
+                onChange={(e) => handleSiteFormChange('equipmentType', e.target.value)}
+              />
+              <Input
+                label="Tower Type"
+                value={siteForm.towerType}
+                onChange={(e) => handleSiteFormChange('towerType', e.target.value)}
+              />
+            </div>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: '0.95rem', color: '#1d2939' }}>
+              Notes
+              <textarea
+                value={siteForm.notes}
+                onChange={(e) => handleSiteFormChange('notes', e.target.value)}
+                style={{
+                  padding: '0.85rem 1rem',
+                  borderRadius: '0.75rem',
+                  border: '1px solid #d0d5dd',
+                  fontSize: '1rem',
+                  minHeight: '80px',
+                  fontFamily: 'inherit'
+                }}
+              />
+            </label>
+            <Button type="submit" disabled={updateSiteDetailsMutation.isPending}>
+              {updateSiteDetailsMutation.isPending ? 'Saving...' : 'Save Site'}
+            </Button>
+            {updateSiteDetailsMutation.isError && (
+              <p style={{ color: '#dc2626', margin: 0, fontSize: '0.875rem' }}>
+                Failed to update site. Please try again.
+              </p>
+            )}
+          </form>
+        </Card>
+      )}
+
       <Card>
         <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>Site Information</h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -295,7 +542,7 @@ export const SiteDetailPage = () => {
           <form
             onSubmit={(e: FormEvent) => {
               e.preventDefault();
-              updateFieldsMutation.mutate(customFields);
+              updateCustomFieldsMutation.mutate(customFields);
             }}
             style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
           >
@@ -316,10 +563,10 @@ export const SiteDetailPage = () => {
                   )
                 )}
             </div>
-            <Button type="submit" disabled={updateFieldsMutation.isPending}>
-              {updateFieldsMutation.isPending ? 'Saving...' : 'Save Fields'}
+            <Button type="submit" disabled={updateCustomFieldsMutation.isPending}>
+              {updateCustomFieldsMutation.isPending ? 'Saving...' : 'Save Fields'}
             </Button>
-            {updateFieldsMutation.isError && (
+            {updateCustomFieldsMutation.isError && (
               <p style={{ color: '#dc2626', margin: 0, fontSize: '0.875rem' }}>
                 Failed to save fields. Please try again.
               </p>

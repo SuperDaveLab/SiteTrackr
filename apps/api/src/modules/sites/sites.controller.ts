@@ -71,10 +71,14 @@ export class SitesController {
           name: true,
           code: true,
           marketName: true,
+          customFields: true,
           city: true,
           state: true,
+          county: true,
           createdAt: true,
           updatedAt: true,
+          equipmentType: true,
+          towerType: true,
           owner: {
             select: {
               id: true,
@@ -236,6 +240,48 @@ export class SitesController {
     }
     if (body.customFields !== undefined) {
       updateData.customFields = body.customFields;
+    }
+    if (body.name !== undefined) {
+      updateData.name = body.name;
+    }
+    if (body.code !== undefined) {
+      updateData.code = body.code;
+    }
+    if (body.marketName !== undefined) {
+      updateData.marketName = body.marketName;
+    }
+    if (body.addressLine1 !== undefined) {
+      updateData.addressLine1 = body.addressLine1;
+    }
+    if (body.addressLine2 !== undefined) {
+      updateData.addressLine2 = body.addressLine2;
+    }
+    if (body.city !== undefined) {
+      updateData.city = body.city;
+    }
+    if (body.state !== undefined) {
+      updateData.state = body.state;
+    }
+    if (body.county !== undefined) {
+      updateData.county = body.county;
+    }
+    if (body.postalCode !== undefined) {
+      updateData.postalCode = body.postalCode;
+    }
+    if (body.latitude !== undefined) {
+      updateData.latitude = body.latitude;
+    }
+    if (body.longitude !== undefined) {
+      updateData.longitude = body.longitude;
+    }
+    if (body.equipmentType !== undefined) {
+      updateData.equipmentType = body.equipmentType;
+    }
+    if (body.towerType !== undefined) {
+      updateData.towerType = body.towerType;
+    }
+    if (body.notes !== undefined) {
+      updateData.notes = body.notes;
     }
 
     const site = await this.fastify.prisma.site.update({

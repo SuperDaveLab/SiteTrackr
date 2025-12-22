@@ -331,20 +331,26 @@ export const TicketCreatePage = () => {
 
                 {template.fields.length > 0 && (
                   <>
-                    {groupTemplateFields(template.fields).map((group) => (
-                      <Card key={group.sectionName}>
-                        <h3 style={{ marginTop: 0 }}>{group.sectionName}</h3>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                          {group.fields.map((field) =>
-                            renderField(
-                              field,
-                              customFields[field.key],
-                              (value) => handleFieldChange(field.key, value)
-                            )
-                          )}
-                        </div>
-                      </Card>
-                    ))}
+                    {groupTemplateFields(template.fields).map((group) => {
+                      const requiredFields = group.fields.filter((field) => field.required);
+                      if (requiredFields.length === 0) {
+                        return null;
+                      }
+                      return (
+                        <Card key={group.sectionName}>
+                          <h3 style={{ marginTop: 0 }}>{group.sectionName}</h3>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                            {requiredFields.map((field) =>
+                              renderField(
+                                field,
+                                customFields[field.key],
+                                (value) => handleFieldChange(field.key, value)
+                              )
+                            )}
+                          </div>
+                        </Card>
+                      );
+                    })}
                   </>
                 )}
               </>

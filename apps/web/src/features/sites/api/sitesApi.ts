@@ -16,8 +16,12 @@ export interface SiteSummary {
   name: string;
   code?: string;
   marketName?: string;
+  customFields?: Record<string, unknown> | null;
   city?: string;
   state?: string;
+  county?: string;
+  equipmentType?: string;
+  towerType?: string;
   createdAt: string;
   updatedAt: string;
   owner?: {
@@ -102,6 +106,20 @@ export const fetchSiteById = (siteId: string) =>
 export interface UpdateSiteInput {
   siteOwnerId?: string | null;
   customFields?: Record<string, unknown>;
+  name?: string;
+  code?: string | null;
+  marketName?: string | null;
+  addressLine1?: string | null;
+  addressLine2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  county?: string | null;
+  postalCode?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  equipmentType?: string | null;
+  towerType?: string | null;
+  notes?: string | null;
 }
 
 export const updateSite = (siteId: string, input: UpdateSiteInput) =>

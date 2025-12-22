@@ -9,6 +9,21 @@ VALUES (
 )
 ON CONFLICT (id) DO NOTHING;
 
+-- Insert demo user if not exists
+INSERT INTO "User" (id, "companyId", email, "passwordHash", role, "displayName", "isActive", "createdAt", "updatedAt")
+VALUES (
+  '00000000-0000-0000-0000-000000000001',
+  '11111111-1111-1111-1111-111111111111',
+  'demo@site-trackr.local',
+  'dummy-hash',
+  'ADMIN',
+  'Demo Admin',
+  true,
+  NOW(),
+  NOW()
+)
+ON CONFLICT (email) DO NOTHING;
+
 -- Insert demo ticket template if not exists
 INSERT INTO "TicketTemplate" (id, "companyId", name, code, description, "createdAt", "updatedAt")
 VALUES (
@@ -31,7 +46,7 @@ VALUES
     'visit_summary',
     'Visit Summary',
     'TEXTAREA',
-    true,
+    false,
     0,
     '{"placeholder":"Summarize the work performed"}'::jsonb,
     'General',
@@ -47,7 +62,7 @@ VALUES
     'SELECT',
     false,
     1,
-    '{"options":[{"label":"Low","value":"low"},{"label":"Normal","value":"normal"},{"label":"High","value":"high"}]}'::jsonb,
+    '{"options":["Low","Normal","High"]}'::jsonb,
     'General',
     0,
     NOW(),
@@ -55,11 +70,25 @@ VALUES
   )
 ON CONFLICT ("templateId", "key") DO NOTHING;
 
+-- Insert demo site owner if not exists
+INSERT INTO "SiteOwner" (id, "companyId", name, code, notes, "createdAt", "updatedAt")
+VALUES (
+  '33333333-3333-3333-3333-333333333332',
+  '11111111-1111-1111-1111-111111111111',
+  'Front Range Partners',
+  'FRP',
+  'Primary regional owner contact for demo records.',
+  NOW(),
+  NOW()
+)
+ON CONFLICT ("companyId", code) DO NOTHING;
+
 -- Insert demo site if not exists
-INSERT INTO "Site" (id, "companyId", name, code, "addressLine1", city, state, "postalCode", latitude, longitude, notes, "customFields", "createdAt", "updatedAt")
+INSERT INTO "Site" (id, "companyId", "siteOwnerId", name, code, "addressLine1", city, state, "postalCode", latitude, longitude, notes, "customFields", "createdAt", "updatedAt")
 VALUES (
   '33333333-3333-3333-3333-333333333333',
   '11111111-1111-1111-1111-111111111111',
+  '33333333-3333-3333-3333-333333333332',
   'Demo Broadcast Tower',
   'DBT-001',
   '123 Skyline Dr',
@@ -74,18 +103,3 @@ VALUES (
   NOW()
 )
 ON CONFLICT (id) DO NOTHING;
-
--- Insert demo user if not exists
-INSERT INTO "User" (id, "companyId", email, "passwordHash", role, "displayName", "isActive", "createdAt", "updatedAt")
-VALUES (
-  '00000000-0000-0000-0000-000000000001',
-  '11111111-1111-1111-1111-111111111111',
-  'demo@site-trackr.local',
-  'dummy-hash',
-  'ADMIN',
-  'Demo Admin',
-  true,
-  NOW(),
-  NOW()
-)
-ON CONFLICT (email) DO NOTHING;

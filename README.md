@@ -95,7 +95,15 @@ npm run prisma:migrate
 
 ### 4. Seed Demo Data (Optional)
 
-The database will automatically create a demo company and admin user on first run:
+Run the helper script for a full reset plus demo data:
+
+```bash
+./scripts/reset-db.sh
+```
+
+The script drops the database referenced by `DATABASE_URL`, reruns Prisma migrations, and then applies the expanded seed file at `apps/api/seed-demo.sql`.
+
+The API will automatically create a demo company and admin user on first run:
 - **Company ID**: `11111111-1111-1111-1111-111111111111`
 - **Admin User**: `00000000-0000-0000-0000-000000000001`
 - **Email**: `admin@demo.com`

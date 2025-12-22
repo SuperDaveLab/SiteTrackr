@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import {
   ColumnDef,
   flexRender,
@@ -12,6 +12,47 @@ import {
 } from '@tanstack/react-table';
 import { fetchSites, SiteSummary } from '../api/sitesApi';
 import { useAuth } from '../../auth/hooks/useAuth';
+import { listSiteFieldDefinitions, SiteFieldDefinition } from '../../siteOwners/api/siteOwnersApi';
+
+const buildCustomFieldColumnId = (key: string) => `customField_${key}`;
+
+const resolveCustomFieldValue = (fields: SiteSummary['customFields'], key: string): unknown => {
+  if (!fields) {
+    return undefined;
+  }
+  return (fields as Record<string, unknown>)[key];
+};
+
+const humanizeKey = (key: string): string => {
+  if (!key) return 'Custom Field';
+  const replaced = key.replace(/[_-]+/g, ' ').trim();
+  return replaced.length === 0
+    ? 'Custom Field'
+    : replaced
+        .split(' ')
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
+};
+
+const formatCustomFieldValue = (value: unknown): string => {
+  if (value === null || value === undefined || value === '') {
+    return '—';
+  }
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map((entry) => String(entry)).join(', ');
+  }
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return '—';
+  }
+};
 
 export const SitesListPage = () => {
   const { user } = useAuth();
@@ -34,6 +75,11 @@ export const SitesListPage = () => {
     }
     return {};
   });
+  const { data: siteFieldDefinitions } = useQuery<SiteFieldDefinition[]>({
+    queryKey: ['siteFieldDefinitions', 'all'],
+    queryFn: () => listSiteFieldDefinitions()
+  });
+  const customFieldDefinitions = siteFieldDefinitions ?? [];
 
   const sortBy = (() => {
     const id = sorting[0]?.id;
@@ -68,15 +114,58 @@ export const SitesListPage = () => {
         sortBy,
         sortDir
       }),
-    keepPreviousData: true
+    placeholderData: keepPreviousData
   });
 
   const sites = data?.data ?? [];
   const total = data?.meta.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-  const columns = useMemo<ColumnDef<SiteSummary>[]>(
-    () => [
+  const customFieldColumns = useMemo(() => {
+    const definitionsByKey = new Map<string, SiteFieldDefinition>();
+    customFieldDefinitions.forEach((definition) => {
+      definitionsByKey.set(definition.key, definition);
+    });
+
+    const keys = new Set<string>();
+    customFieldDefinitions.forEach((definition) => keys.add(definition.key));
+    sites.forEach((site) => {
+      if (!site.customFields) return;
+      Object.keys(site.customFields).forEach((key) => keys.add(key));
+    });
+
+    return Array.from(keys)
+      .map((key) => {
+        const definition = definitionsByKey.get(key);
+        return {
+          key,
+          label: definition?.label ?? humanizeKey(key),
+          orderIndex: definition?.orderIndex ?? 0
+        };
+      })
+      .sort((a, b) => a.orderIndex - b.orderIndex || a.label.localeCompare(b.label));
+  }, [customFieldDefinitions, sites]);
+
+  useEffect(() => {
+    if (!user || customFieldColumns.length === 0) {
+      return;
+    }
+    setColumnVisibility((prev) => {
+      let updated = false;
+      const next: VisibilityState = { ...prev };
+      customFieldColumns.forEach((column) => {
+        const columnId = buildCustomFieldColumnId(column.key);
+        if (next[columnId] === undefined) {
+          next[columnId] = false;
+          updated = true;
+        }
+      });
+      return updated ? next : prev;
+    });
+  }, [customFieldColumns, user]);
+
+  const columns = useMemo<ColumnDef<SiteSummary>[]>(() => {
+    const baseColumns: ColumnDef<SiteSummary>[] = [
       {
         id: 'code',
         header: 'Code',
@@ -104,16 +193,6 @@ export const SitesListPage = () => {
         )
       },
       {
-        id: 'marketName',
-        header: 'Market Name',
-        accessorKey: 'marketName',
-        cell: ({ getValue }) => (
-          <span style={{ fontSize: '0.875rem', color: '#374151' }}>
-            {getValue<string>() || '—'}
-          </span>
-        )
-      },
-      {
         id: 'city',
         header: 'City',
         accessorKey: 'city',
@@ -130,11 +209,37 @@ export const SitesListPage = () => {
         )
       },
       {
+        id: 'county',
+        header: 'County',
+        accessorKey: 'county',
+        cell: ({ getValue }) => <span style={{ fontSize: '0.875rem' }}>{getValue<string>() || '—'}</span>
+      },
+      {
         id: 'owner',
         header: 'Owner',
         accessorFn: (row) => row.owner?.name ?? '',
         cell: ({ getValue }) => (
           <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+            {getValue<string>() || '—'}
+          </span>
+        )
+      },
+      {
+        id: 'equipmentType',
+        header: 'Equipment Type',
+        accessorKey: 'equipmentType',
+        cell: ({ getValue }) => (
+          <span style={{ fontSize: '0.875rem', color: '#374151' }}>
+            {getValue<string>() || '—'}
+          </span>
+        )
+      },
+      {
+        id: 'towerType',
+        header: 'Tower Type',
+        accessorKey: 'towerType',
+        cell: ({ getValue }) => (
+          <span style={{ fontSize: '0.875rem', color: '#374151' }}>
             {getValue<string>() || '—'}
           </span>
         )
@@ -161,9 +266,21 @@ export const SitesListPage = () => {
           </span>
         )
       }
-    ],
-    []
-  );
+    ];
+
+    const dynamicColumns: ColumnDef<SiteSummary>[] = customFieldColumns.map((column) => ({
+      id: buildCustomFieldColumnId(column.key),
+      header: column.label,
+      accessorFn: (row) => resolveCustomFieldValue(row.customFields, column.key),
+      cell: ({ getValue }) => (
+        <span style={{ fontSize: '0.875rem', color: '#374151' }}>
+          {formatCustomFieldValue(getValue())}
+        </span>
+      )
+    }));
+
+    return [...baseColumns, ...dynamicColumns];
+  }, [customFieldColumns, navigate]);
 
   const table = useReactTable({
     data: sites,
