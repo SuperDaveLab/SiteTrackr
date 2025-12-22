@@ -2,7 +2,7 @@
 
 A comprehensive field operations management platform for tracking work orders, site visits, and assets across multiple locations. Built for telecom and infrastructure field service organizations.
 
-![SiteTrackr GUI Screenshot](Screenshot 1.png)
+![SiteTrackr GUI Screenshot](Screenshot%201.png)
 
 ## 🚀 Features
 
