@@ -10,14 +10,15 @@ import type { ImportResult } from './importSiteOwners';
 import { generateNextTicketNumber } from '../tickets/ticketNumber.service';
 
 /**
- * Import tickets from CSV content
+ * Import tickets from CSV/Excel content
  */
 export async function importTickets(
   fastify: FastifyInstance,
   companyId: string,
-  csvContent: Buffer | string
+  csvContent: Buffer | string,
+  filename?: string
 ): Promise<ImportResult> {
-  const rows = parseCSV(csvContent);
+  const rows = parseCSV(csvContent, filename);
   const result: ImportResult = {
     summary: {
       totalRows: rows.length,

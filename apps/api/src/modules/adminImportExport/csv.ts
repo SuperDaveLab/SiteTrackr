@@ -1,5 +1,6 @@
 import { parse } from 'csv-parse/sync';
 import { stringify } from 'csv-stringify/sync';
+import * as XLSX from 'xlsx';
 
 export interface ParsedRow {
   [key: string]: string | undefined;
@@ -21,9 +22,15 @@ export interface CustomFieldColumns {
 }
 
 /**
- * Parse CSV content from a buffer or string
+ * Parse CSV or Excel content from a buffer
  */
-export function parseCSV(content: Buffer | string): ParsedRow[] {
+export function parseCSV(content: Buffer | string, filename?: string): ParsedRow[] {
+  // Check if it's an Excel file
+  if (filename && (filename.endsWith('.xlsx') || filename.endsWith('.xls'))) {
+    return parseExcel(content);
+  }
+
+  // Otherwise parse as CSV
   const text = typeof content === 'string' ? content : content.toString('utf-8');
   
   const records = parse(text, {
@@ -37,17 +44,69 @@ export function parseCSV(content: Buffer | string): ParsedRow[] {
 }
 
 /**
- * Generate CSV content from rows
+ * Parse Excel file content from a buffer
  */
-export function generateCSV(rows: Record<string, any>[]): string {
+function parseExcel(content: Buffer | string): ParsedRow[] {
+  const buffer = typeof content === 'string' ? Buffer.from(content) : content;
+  
+  // Read the workbook
+  const workbook = XLSX.read(buffer, { type: 'buffer' });
+  
+  // Get the first worksheet
+  const firstSheetName = workbook.SheetNames[0];
+  const worksheet = workbook.Sheets[firstSheetName];
+  
+  // Convert to JSON with header row as keys
+  const records = XLSX.utils.sheet_to_json(worksheet, {
+    raw: false, // Convert all values to strings
+    defval: '', // Default value for empty cells
+  }) as Record<string, unknown>[];
+  
+  // Convert all values to strings to match CSV behavior
+  return records.map(row => {
+    const parsedRow: ParsedRow = {};
+    for (const [key, value] of Object.entries(row)) {
+      parsedRow[key] = value != null ? String(value) : undefined;
+    }
+    return parsedRow;
+  });
+}
+
+/**
+ * Generate CSV or Excel content from rows
+ */
+export function generateCSV(rows: Record<string, any>[], format: 'csv' | 'xlsx' = 'csv'): string | Buffer {
   if (rows.length === 0) {
-    return '';
+    return format === 'csv' ? '' : Buffer.from('');
+  }
+
+  if (format === 'xlsx') {
+    return generateExcel(rows);
   }
 
   return stringify(rows, {
     header: true,
     quoted: true,
   });
+}
+
+/**
+ * Generate Excel file content from rows
+ */
+function generateExcel(rows: Record<string, any>[]): Buffer {
+  // Create a new workbook
+  const workbook = XLSX.utils.book_new();
+  
+  // Create worksheet from the rows
+  const worksheet = XLSX.utils.json_to_sheet(rows);
+  
+  // Add the worksheet to the workbook
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
+  
+  // Generate Excel file buffer
+  const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+  
+  return buffer;
 }
 
 /**

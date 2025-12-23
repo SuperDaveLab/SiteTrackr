@@ -9,14 +9,15 @@ import {
 import type { ImportResult } from './importSiteOwners';
 
 /**
- * Import sites from CSV content
+ * Import sites from CSV/Excel content
  */
 export async function importSites(
   fastify: FastifyInstance,
   companyId: string,
-  csvContent: Buffer | string
+  csvContent: Buffer | string,
+  filename?: string
 ): Promise<ImportResult> {
-  const rows = parseCSV(csvContent);
+  const rows = parseCSV(csvContent, filename);
   const result: ImportResult = {
     summary: {
       totalRows: rows.length,

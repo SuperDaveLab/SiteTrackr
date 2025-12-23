@@ -17,12 +17,15 @@ export interface ImportResult {
 }
 
 /**
- * Download a CSV export for the specified entity type
+ * Download a CSV or Excel export for the specified entity type
  */
-export async function downloadExport(entityType: 'site-owners' | 'sites' | 'ticket-templates' | 'tickets'): Promise<void> {
+export async function downloadExport(
+  entityType: 'site-owners' | 'sites' | 'ticket-templates' | 'tickets',
+  format: 'csv' | 'xlsx' = 'csv'
+): Promise<void> {
   const token = localStorage.getItem(ACCESS_TOKEN_KEY);
   
-  const response = await fetch(`${baseUrl}/admin/export/${entityType}?format=csv`, {
+  const response = await fetch(`${baseUrl}/admin/export/${entityType}?format=${format}`, {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -37,7 +40,7 @@ export async function downloadExport(entityType: 'site-owners' | 'sites' | 'tick
   // Get the filename from the Content-Disposition header
   const contentDisposition = response.headers.get('Content-Disposition');
   const filenameMatch = contentDisposition?.match(/filename="(.+)"/);
-  const filename = filenameMatch ? filenameMatch[1] : `${entityType}.csv`;
+  const filename = filenameMatch ? filenameMatch[1] : `${entityType}.${format}`;
 
   // Download the file
   const blob = await response.blob();

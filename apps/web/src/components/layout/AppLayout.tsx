@@ -1,13 +1,12 @@
-import { useState } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { useState, useRef, useEffect } from 'react';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../features/auth/hooks/useAuth';
 import { useOnlineStatus } from '../../lib/hooks/useOnlineStatus';
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: '📊', roles: ['ADMIN', 'DISPATCHER', 'TECH'] },
   { path: '/tickets', label: 'Tickets', icon: '🎫', roles: ['ADMIN', 'DISPATCHER', 'TECH'] },
-  { path: '/sites', label: 'Sites', icon: '📍', roles: ['ADMIN', 'DISPATCHER', 'TECH'] },
-  { path: '/profile', label: 'Profile', icon: '👤', roles: ['ADMIN', 'DISPATCHER', 'TECH'] }
+  { path: '/sites', label: 'Sites', icon: '📍', roles: ['ADMIN', 'DISPATCHER', 'TECH'] }
 ];
 
 const adminNavItems = [
@@ -18,14 +17,41 @@ const adminNavItems = [
 ];
 
 export const AppLayout = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const isOnline = useOnlineStatus();
   const initials = user?.displayName?.slice(0, 2).toUpperCase() ?? user?.email?.slice(0, 2).toUpperCase() ?? 'ST';
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
   
   const isAdmin = user?.role === 'ADMIN';
   const visibleNavItems = navItems.filter(item => item.roles.includes(user?.role || 'TECH'));
   const visibleAdminItems = isAdmin ? adminNavItems : [];
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setProfileMenuOpen(false);
+      }
+    };
+
+    if (profileMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [profileMenuOpen]);
+
+  const handleProfileClick = () => {
+    setProfileMenuOpen(false);
+    navigate('/profile');
+  };
+
+  const handleLogout = () => {
+    setProfileMenuOpen(false);
+    logout();
+  };
 
   return (
     <div style={{ height: '100vh', background: '#f1f5f9', display: 'flex', flexDirection: 'column' }}>
@@ -64,19 +90,92 @@ export const AppLayout = () => {
             <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>{isOnline ? 'Online' : 'Offline'}</div>
           </div>
         </div>
-        <div
-          style={{
-            width: '40px',
-            height: '40px',
-            borderRadius: '999px',
-            background: '#48d2c5',
-            color: '#0f172a',
-            display: 'grid',
-            placeItems: 'center',
-            fontWeight: 700
-          }}
-        >
-          {initials}
+        <div style={{ position: 'relative' }} ref={profileMenuRef}>
+          <div
+            onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+            style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '999px',
+              background: '#48d2c5',
+              color: '#0f172a',
+              display: 'grid',
+              placeItems: 'center',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'opacity 0.2s',
+              opacity: profileMenuOpen ? 0.8 : 1
+            }}
+            title="Profile menu"
+          >
+            {initials}
+          </div>
+          
+          {profileMenuOpen && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '50px',
+                right: 0,
+                background: '#fff',
+                border: '1px solid #e5e7eb',
+                borderRadius: '0.5rem',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                minWidth: '180px',
+                overflow: 'hidden',
+                zIndex: 50
+              }}
+            >
+              <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid #e5e7eb', fontSize: '0.875rem', color: '#6b7280' }}>
+                {user?.displayName || user?.email}
+              </div>
+              <button
+                onClick={handleProfileClick}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem 1rem',
+                  border: 'none',
+                  background: 'transparent',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  fontSize: '0.875rem',
+                  color: '#374151',
+                  transition: 'background 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#f9fafb'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+              >
+                <span>👤</span>
+                <span>Profile</span>
+              </button>
+              <button
+                onClick={handleLogout}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem 1rem',
+                  border: 'none',
+                  borderTop: '1px solid #e5e7eb',
+                  background: 'transparent',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  fontSize: '0.875rem',
+                  color: '#dc2626',
+                  transition: 'background 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#fef2f2'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+              >
+                <span>🚪</span>
+                <span>Log out</span>
+              </button>
+            </div>
+          )}
         </div>
       </header>
 

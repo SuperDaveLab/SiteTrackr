@@ -5,12 +5,13 @@ import {
 } from './csv';
 
 /**
- * Export site owners to CSV format
+ * Export site owners to CSV or Excel format
  */
 export async function exportSiteOwners(
   fastify: FastifyInstance,
-  companyId: string
-): Promise<string> {
+  companyId: string,
+  format: 'csv' | 'xlsx' = 'csv'
+): Promise<string | Buffer> {
   // Fetch all site owners with their field definitions
   const siteOwners = await fastify.prisma.siteOwner.findMany({
     where: {
@@ -56,5 +57,5 @@ export async function exportSiteOwners(
     return row;
   });
 
-  return generateCSV(rows);
+  return generateCSV(rows, format);
 }

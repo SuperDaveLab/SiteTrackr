@@ -16,13 +16,21 @@ export async function adminImportExportRoutes(app: FastifyInstance) {
     preHandler: requireRole([UserRole.ADMIN]),
   }, async (request, reply) => {
     const { companyId } = request.user as any;
+    const { format = 'csv' } = request.query as { format?: 'csv' | 'xlsx' };
     
-    const csv = await exportSiteOwners(app, companyId);
+    const content = await exportSiteOwners(app, companyId, format);
     
-    reply
-      .header('Content-Type', 'text/csv')
-      .header('Content-Disposition', 'attachment; filename="site-owners.csv"')
-      .send(csv);
+    if (format === 'xlsx') {
+      reply
+        .header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        .header('Content-Disposition', 'attachment; filename="site-owners.xlsx"')
+        .send(content);
+    } else {
+      reply
+        .header('Content-Type', 'text/csv')
+        .header('Content-Disposition', 'attachment; filename="site-owners.csv"')
+        .send(content);
+    }
   });
 
   app.post('/admin/import/site-owners', {
@@ -36,7 +44,7 @@ export async function adminImportExportRoutes(app: FastifyInstance) {
     }
 
     const buffer = await data.toBuffer();
-    const result = await importSiteOwners(app, companyId, buffer);
+    const result = await importSiteOwners(app, companyId, buffer, data.filename);
     
     return result;
   });
@@ -46,13 +54,21 @@ export async function adminImportExportRoutes(app: FastifyInstance) {
     preHandler: requireRole([UserRole.ADMIN]),
   }, async (request, reply) => {
     const { companyId } = request.user as any;
+    const { format = 'csv' } = request.query as { format?: 'csv' | 'xlsx' };
     
-    const csv = await exportSites(app, companyId);
+    const content = await exportSites(app, companyId, format);
     
-    reply
-      .header('Content-Type', 'text/csv')
-      .header('Content-Disposition', 'attachment; filename="sites.csv"')
-      .send(csv);
+    if (format === 'xlsx') {
+      reply
+        .header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        .header('Content-Disposition', 'attachment; filename="sites.xlsx"')
+        .send(content);
+    } else {
+      reply
+        .header('Content-Type', 'text/csv')
+        .header('Content-Disposition', 'attachment; filename="sites.csv"')
+        .send(content);
+    }
   });
 
   app.post('/admin/import/sites', {
@@ -66,7 +82,7 @@ export async function adminImportExportRoutes(app: FastifyInstance) {
     }
 
     const buffer = await data.toBuffer();
-    const result = await importSites(app, companyId, buffer);
+    const result = await importSites(app, companyId, buffer, data.filename);
     
     return result;
   });
@@ -76,13 +92,21 @@ export async function adminImportExportRoutes(app: FastifyInstance) {
     preHandler: requireRole([UserRole.ADMIN]),
   }, async (request, reply) => {
     const { companyId } = request.user as any;
+    const { format = 'csv' } = request.query as { format?: 'csv' | 'xlsx' };
     
-    const csv = await exportTicketTemplates(app, companyId);
+    const content = await exportTicketTemplates(app, companyId, format);
     
-    reply
-      .header('Content-Type', 'text/csv')
-      .header('Content-Disposition', 'attachment; filename="ticket-templates.csv"')
-      .send(csv);
+    if (format === 'xlsx') {
+      reply
+        .header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        .header('Content-Disposition', 'attachment; filename="ticket-templates.xlsx"')
+        .send(content);
+    } else {
+      reply
+        .header('Content-Type', 'text/csv')
+        .header('Content-Disposition', 'attachment; filename="ticket-templates.csv"')
+        .send(content);
+    }
   });
 
   app.post('/admin/import/ticket-templates', {
@@ -96,7 +120,7 @@ export async function adminImportExportRoutes(app: FastifyInstance) {
     }
 
     const buffer = await data.toBuffer();
-    const result = await importTicketTemplates(app, companyId, buffer);
+    const result = await importTicketTemplates(app, companyId, buffer, data.filename);
     
     return result;
   });
@@ -106,13 +130,21 @@ export async function adminImportExportRoutes(app: FastifyInstance) {
     preHandler: requireRole([UserRole.ADMIN]),
   }, async (request, reply) => {
     const { companyId } = request.user as any;
+    const { format = 'csv' } = request.query as { format?: 'csv' | 'xlsx' };
     
-    const csv = await exportTickets(app, companyId);
+    const content = await exportTickets(app, companyId, format);
     
-    reply
-      .header('Content-Type', 'text/csv')
-      .header('Content-Disposition', 'attachment; filename="tickets.csv"')
-      .send(csv);
+    if (format === 'xlsx') {
+      reply
+        .header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        .header('Content-Disposition', 'attachment; filename="tickets.xlsx"')
+        .send(content);
+    } else {
+      reply
+        .header('Content-Type', 'text/csv')
+        .header('Content-Disposition', 'attachment; filename="tickets.csv"')
+        .send(content);
+    }
   });
 
   app.post('/admin/import/tickets', {
@@ -126,7 +158,7 @@ export async function adminImportExportRoutes(app: FastifyInstance) {
     }
 
     const buffer = await data.toBuffer();
-    const result = await importTickets(app, companyId, buffer);
+    const result = await importTickets(app, companyId, buffer, data.filename);
     
     return result;
   });

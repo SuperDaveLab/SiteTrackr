@@ -5,12 +5,13 @@ import {
 } from './csv';
 
 /**
- * Export ticket templates to CSV format
+ * Export ticket templates to CSV or Excel format
  */
 export async function exportTicketTemplates(
   fastify: FastifyInstance,
-  companyId: string
-): Promise<string> {
+  companyId: string,
+  format: 'csv' | 'xlsx' = 'csv'
+): Promise<string | Buffer> {
   // Fetch all ticket templates with their field definitions
   const templates = await fastify.prisma.ticketTemplate.findMany({
     where: {
@@ -59,5 +60,5 @@ export async function exportTicketTemplates(
     return row;
   });
 
-  return generateCSV(rows);
+  return generateCSV(rows, format);
 }

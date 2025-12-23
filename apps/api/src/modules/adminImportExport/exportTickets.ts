@@ -4,12 +4,13 @@ import {
 } from './csv';
 
 /**
- * Export tickets to CSV format
+ * Export tickets to CSV or Excel format
  */
 export async function exportTickets(
   fastify: FastifyInstance,
-  companyId: string
-): Promise<string> {
+  companyId: string,
+  format: 'csv' | 'xlsx' = 'csv'
+): Promise<string | Buffer> {
   // Fetch all tickets with related data
   const tickets = await fastify.prisma.ticket.findMany({
     where: {
@@ -82,5 +83,5 @@ export async function exportTickets(
     return row;
   });
 
-  return generateCSV(rows);
+  return generateCSV(rows, format);
 }
