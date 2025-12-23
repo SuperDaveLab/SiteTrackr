@@ -13,6 +13,7 @@ model Company {
   slug        String                @unique
   createdAt   DateTime              @default(now())
   updatedAt   DateTime              @updatedAt
+  branding    Json?
   assets      Asset[]
   attachments Attachment[]
   sites       Site[]

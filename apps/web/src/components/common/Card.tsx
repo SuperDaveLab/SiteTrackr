@@ -1,22 +1,17 @@
 import { CSSProperties, ReactNode } from 'react';
+import './common.css';
 
 interface CardProps {
   children: ReactNode;
   maxWidth?: number | string;
+  className?: string;
   style?: CSSProperties;
 }
 
-export const Card = ({ children, maxWidth = '100%', style }: CardProps) => (
+export const Card = ({ children, maxWidth = '100%', className, style }: CardProps) => (
   <div
-    style={{
-      width: '100%',
-      maxWidth,
-      borderRadius: '1rem',
-      padding: '1.5rem',
-      background: '#fff',
-      boxShadow: '0 20px 40px rgba(15, 15, 15, 0.08)',
-      ...style
-    }}
+    className={['ui-card', className].filter(Boolean).join(' ')}
+    style={{ maxWidth, ...style }}
   >
     {children}
   </div>

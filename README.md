@@ -23,6 +23,7 @@ A comprehensive field operations management platform for tracking work orders, s
 - **🔐 Secure Authentication** - JWT-based authentication with role-based permissions (ADMIN, MANAGER, TECH)
 - **📥 Bulk Downloads** - Download all attachments as ZIP archives
 - **📤 Admin Import/Export** - CSV-based bulk import/export for Site Owners, Sites, Ticket Templates, and Tickets with custom field support
+- **🎨 Company Branding** - Token-based theming with preset palettes, dark mode toggle, and tenant-specific logos
 
 ## 🛠️ Tech Stack
 
@@ -42,7 +43,7 @@ A comprehensive field operations management platform for tracking work orders, s
 - **State Management**: TanStack Query (React Query)
 - **Data Tables**: TanStack Table
 - **Offline Storage**: Dexie (IndexedDB wrapper)
-- **Styling**: Inline styles (component-based)
+- **Styling**: Token-driven CSS variables with a ThemeProvider
 
 ### Database Schema
 - Companies, Users, Sites, Assets
@@ -277,6 +278,10 @@ http://localhost:3001/api/v1
 - `POST /visits/:visitId/attachments` - Upload visit attachment
 - `POST /visits/:visitId/attachments/metadata` - Create visit attachment metadata
 - `PUT /attachments/:id/content` - Upload attachment bytes for a pending metadata record
+
+**Branding (Admin):**
+- `GET /company/branding` - Retrieve theme tokens for the active company
+- `PUT /company/branding` - Update branding (primary color, logo URL, mode)
 
 **Admin Import/Export:**
 - `POST /admin/import/site-owners` - Import Site Owners from CSV

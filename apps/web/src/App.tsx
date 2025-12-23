@@ -5,13 +5,16 @@ import { queryClient } from './lib/queryClient';
 import { router } from './router';
 import { AuthProvider } from './features/auth/hooks/useAuth';
 import { OfflineManager } from './offline/OfflineManager';
+import { ThemeProvider } from './theme/ThemeProvider';
 
 export const App = () => (
   <AuthProvider>
-    <QueryClientProvider client={queryClient}>
-      <OfflineManager />
-      <RouterProvider router={router} />
-      <ReactQueryDevtools initialIsOpen={false} />
-    </QueryClientProvider>
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <OfflineManager />
+        <RouterProvider router={router} />
+        <ReactQueryDevtools initialIsOpen={false} />
+      </QueryClientProvider>
+    </ThemeProvider>
   </AuthProvider>
 );

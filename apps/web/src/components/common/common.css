@@ -1,0 +1,144 @@
+.ui-card {
+  width: 100%;
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 20px 40px rgba(15, 15, 15, 0.08);
+  color: var(--color-text);
+}
+
+.ui-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  padding: 0.85rem 1rem;
+  border-radius: 999px;
+  border: none;
+  background: var(--color-primary);
+  color: var(--color-primary-contrast);
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 10px 20px rgba(15, 118, 110, 0.25);
+}
+
+.ui-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.ui-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+  box-shadow: none;
+  background: color-mix(in srgb, var(--color-muted) 60%, #ffffff);
+  color: color-mix(in srgb, var(--color-muted) 90%, #ffffff);
+}
+
+.ui-button--ghost {
+  background: transparent;
+  color: var(--color-primary);
+  box-shadow: none;
+  border: 1px solid var(--color-border);
+}
+
+.ui-button--ghost:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+}
+
+.ui-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: 0.95rem;
+  color: var(--color-text);
+}
+
+.ui-input {
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 1rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ui-input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 25%, transparent);
+}
+
+.ui-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0.15rem 0.75rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: color-mix(in srgb, var(--color-primary) 20%, transparent);
+  color: var(--color-primary);
+}
+
+.ui-badge[data-variant='muted'] {
+  background: color-mix(in srgb, var(--color-border) 70%, transparent);
+  color: var(--color-muted);
+}
+
+.ui-badge[data-variant='warning'] {
+  background: rgba(245, 158, 11, 0.15);
+  color: #b45309;
+}
+
+.ui-badge[data-variant='danger'] {
+  background: rgba(239, 68, 68, 0.18);
+  color: #b91c1c;
+}
+
+.ui-badge[data-variant='success'] {
+  background: rgba(14, 159, 110, 0.18);
+  color: #047857;
+}
+
+.ui-table-shell {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  overflow-x: auto;
+}
+
+.ui-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.ui-table thead {
+  background: color-mix(in srgb, var(--color-surface) 70%, var(--color-border));
+  color: var(--color-text);
+}
+
+.ui-table th {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.ui-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 50%, transparent);
+}
+
+.ui-table tbody tr {
+  transition: background 0.15s ease;
+}
+
+.ui-table tbody tr:hover {
+  background: color-mix(in srgb, var(--color-primary) 6%, transparent);
+}

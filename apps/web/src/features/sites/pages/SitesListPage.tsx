@@ -16,6 +16,7 @@ import { listSiteFieldDefinitions, SiteFieldDefinition } from '../../siteOwners/
 import { cacheFirstQuery } from '../../../offline/cacheFirst';
 import { db } from '../../../offline/db';
 import { useOnlineStatus } from '../../../offline/useOnlineStatus';
+import { Table } from '../../../components/common/Table';
 
 const buildCustomFieldColumnId = (key: string) => `customField_${key}`;
 
@@ -277,7 +278,7 @@ export const SitesListPage = () => {
           <Link
             to={`/sites/${row.original.id}`}
             onClick={(e) => e.stopPropagation()}
-            style={{ color: '#2563eb', textDecoration: 'none', fontWeight: 500 }}
+            style={{ color: 'var(--color-primary)', textDecoration: 'none', fontWeight: 500 }}
           >
             {row.original.name}
           </Link>
@@ -310,7 +311,7 @@ export const SitesListPage = () => {
         header: 'Owner',
         accessorFn: (row) => row.owner?.name ?? '',
         cell: ({ getValue }) => (
-          <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+          <span style={{ fontSize: '0.875rem', color: 'var(--color-muted)' }}>
             {getValue<string>() || '—'}
           </span>
         )
@@ -320,7 +321,7 @@ export const SitesListPage = () => {
         header: 'Equipment Type',
         accessorKey: 'equipmentType',
         cell: ({ getValue }) => (
-          <span style={{ fontSize: '0.875rem', color: '#374151' }}>
+          <span style={{ fontSize: '0.875rem', color: 'var(--color-text)' }}>
             {getValue<string>() || '—'}
           </span>
         )
@@ -330,7 +331,7 @@ export const SitesListPage = () => {
         header: 'Tower Type',
         accessorKey: 'towerType',
         cell: ({ getValue }) => (
-          <span style={{ fontSize: '0.875rem', color: '#374151' }}>
+          <span style={{ fontSize: '0.875rem', color: 'var(--color-text)' }}>
             {getValue<string>() || '—'}
           </span>
         )
@@ -341,7 +342,7 @@ export const SitesListPage = () => {
         accessorKey: 'createdAt',
         enableSorting: true,
         cell: ({ getValue }) => (
-          <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+          <span style={{ fontSize: '0.875rem', color: 'var(--color-muted)' }}>
             {new Date(getValue<string>()).toLocaleString()}
           </span>
         )
@@ -352,7 +353,7 @@ export const SitesListPage = () => {
         accessorKey: 'updatedAt',
         enableSorting: true,
         cell: ({ getValue }) => (
-          <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+          <span style={{ fontSize: '0.875rem', color: 'var(--color-muted)' }}>
             {new Date(getValue<string>()).toLocaleString()}
           </span>
         )
@@ -364,7 +365,7 @@ export const SitesListPage = () => {
       header: column.label,
       accessorFn: (row) => resolveCustomFieldValue(row.customFields, column.key),
       cell: ({ getValue }) => (
-        <span style={{ fontSize: '0.875rem', color: '#374151' }}>
+        <span style={{ fontSize: '0.875rem', color: 'var(--color-text)' }}>
           {formatCustomFieldValue(getValue())}
         </span>
       )
@@ -392,7 +393,9 @@ export const SitesListPage = () => {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         <h2 style={{ margin: 0 }}>Sites</h2>
         {!online && (
-          <span style={{ fontSize: '0.8rem', color: '#b45309' }}>Offline cache shown – new site updates will sync later.</span>
+          <span style={{ fontSize: '0.8rem', color: 'var(--color-primary)' }}>
+            Offline cache shown – new site updates will sync later.
+          </span>
         )}
       </div>
 
@@ -414,7 +417,7 @@ export const SitesListPage = () => {
 
         {/* Column Visibility */}
         <details style={{ fontSize: '0.875rem' }}>
-          <summary style={{ cursor: 'pointer', fontWeight: 500, color: '#374151' }}>
+          <summary style={{ cursor: 'pointer', fontWeight: 500, color: 'var(--color-text)' }}>
             Show/Hide Columns
           </summary>
           <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: '0.5rem', paddingLeft: '1rem' }}>
@@ -433,74 +436,60 @@ export const SitesListPage = () => {
       </div>
 
       {/* Table */}
-      <div style={{ background: '#fff', borderRadius: '0.5rem', border: '1px solid #e5e7eb', overflow: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
-          <thead style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <th
-                    key={header.id}
-                    onClick={header.column.getCanSort() ? header.column.getToggleSortingHandler() : undefined}
-                    style={{
-                      padding: '0.75rem 1rem',
-                      textAlign: 'left',
-                      fontWeight: 600,
-                      color: '#374151',
-                      cursor: header.column.getCanSort() ? 'pointer' : 'default',
-                      userSelect: 'none',
-                      whiteSpace: 'nowrap'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                      {flexRender(header.column.columnDef.header, header.getContext())}
-                      {{
-                        asc: ' 🔼',
-                        desc: ' 🔽'
-                      }[header.column.getIsSorted() as string] ?? null}
-                    </div>
-                  </th>
+      <Table>
+        <thead>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <tr key={headerGroup.id}>
+              {headerGroup.headers.map((header) => (
+                <th
+                  key={header.id}
+                  onClick={header.column.getCanSort() ? header.column.getToggleSortingHandler() : undefined}
+                  style={{
+                    cursor: header.column.getCanSort() ? 'pointer' : 'default',
+                    userSelect: 'none',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                    {flexRender(header.column.columnDef.header, header.getContext())}
+                    {{
+                      asc: ' 🔼',
+                      desc: ' 🔽'
+                    }[header.column.getIsSorted() as string] ?? null}
+                  </div>
+                </th>
+              ))}
+            </tr>
+          ))}
+        </thead>
+        <tbody>
+          {isLoading ? (
+            <tr>
+              <td colSpan={table.getAllLeafColumns().length} style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-muted)' }}>
+                Loading sites...
+              </td>
+            </tr>
+          ) : sites.length === 0 ? (
+            <tr>
+              <td colSpan={table.getAllLeafColumns().length} style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-muted)' }}>
+                No sites found.
+              </td>
+            </tr>
+          ) : (
+            table.getRowModel().rows.map((row) => (
+              <tr
+                key={row.id}
+                onClick={() => navigate(`/sites/${row.original.id}`)}
+                style={{ cursor: 'pointer' }}
+              >
+                {row.getVisibleCells().map((cell) => (
+                  <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
                 ))}
               </tr>
-            ))}
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <tr>
-                <td colSpan={table.getAllLeafColumns().length} style={{ padding: '2rem', textAlign: 'center', color: '#6b7280' }}>
-                  Loading sites...
-                </td>
-              </tr>
-            ) : sites.length === 0 ? (
-              <tr>
-                <td colSpan={table.getAllLeafColumns().length} style={{ padding: '2rem', textAlign: 'center', color: '#6b7280' }}>
-                  No sites found.
-                </td>
-              </tr>
-            ) : (
-              table.getRowModel().rows.map((row) => (
-                <tr
-                  key={row.id}
-                  onClick={() => navigate(`/sites/${row.original.id}`)}
-                  style={{
-                    borderBottom: '1px solid #f3f4f6',
-                    transition: 'background 0.15s',
-                    cursor: 'pointer'
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = '#f9fafb')}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} style={{ padding: '0.75rem 1rem' }}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  ))}
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+            ))
+          )}
+        </tbody>
+      </Table>
 
       {/* Pagination */}
       <div style={{
@@ -514,7 +503,7 @@ export const SitesListPage = () => {
         borderRadius: '0.5rem',
         border: '1px solid #e5e7eb'
       }}>
-        <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+        <div style={{ fontSize: '0.875rem', color: 'var(--color-muted)' }}>
           Showing {sites.length === 0 ? 0 : (page - 1) * pageSize + 1} to {Math.min(page * pageSize, total)} of {total} sites
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
@@ -532,7 +521,7 @@ export const SitesListPage = () => {
           >
             Previous
           </button>
-          <span style={{ fontSize: '0.875rem', color: '#374151' }}>
+          <span style={{ fontSize: '0.875rem', color: 'var(--color-text)' }}>
             Page {page} of {totalPages}
           </span>
           <button
