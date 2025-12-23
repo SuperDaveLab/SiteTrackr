@@ -1,17 +1,19 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { Card } from '../../../components/common/Card';
 import { Button } from '../../../components/common/Button';
 import { Input } from '../../../components/common/Input';
-import { fetchTicketById, createVisitForTicket, updateTicket, uploadVisitAttachment, uploadTicketAttachment, type TicketStatus, type TicketPriority } from '../api/ticketsApi';
+import { fetchTicketById, createVisitForTicket, updateTicket, type TicketStatus, type TicketPriority, type TicketAttachment, type VisitAttachment, type AttachmentStatus } from '../api/ticketsApi';
 import { fetchTemplateById } from '../../templates/api/templatesApi';
 import { groupTemplateFields } from '../utils/groupTemplateFields';
 import { useAuth } from '../../auth/hooks/useAuth';
 import { cacheFirstQuery } from '../../../offline/cacheFirst';
 import { db } from '../../../offline/db';
 import { useOnlineStatus } from '../../../offline/useOnlineStatus';
-import { createVisitOffline, updateTicketOffline } from '../../../offline/mutations';
+import { createVisitOffline, updateTicketOffline, addTicketAttachmentOffline, addVisitAttachmentOffline, retryAttachmentUpload } from '../../../offline/mutations';
+import { runSyncOnce } from '../../../offline/syncRunner';
 
 const renderField = (field: { key: string; label: string; type: string; required: boolean; config?: Record<string, unknown> | null }, value: unknown, onChange: (value: unknown) => void) => {
   const baseStyle = {
@@ -186,6 +188,106 @@ const formatFieldValue = (field: { type: string; config?: Record<string, unknown
   }
 };
 
+const formatFileSize = (bytes: number): string => {
+  if (!Number.isFinite(bytes)) {
+    return '—';
+  }
+  if (bytes >= 1024 * 1024) {
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+  return `${(bytes / 1024).toFixed(1)} KB`;
+};
+
+const AttachmentStatusBadge = ({ status }: { status: AttachmentStatus }) => {
+  const styles: Record<AttachmentStatus, { bg: string; color: string; label: string }> = {
+    READY: { bg: '#d1fae5', color: '#065f46', label: 'Uploaded' },
+    PENDING: { bg: '#fef3c7', color: '#92400e', label: 'Pending upload' },
+    FAILED: { bg: '#fee2e2', color: '#991b1b', label: 'Upload failed' }
+  };
+
+  const style = styles[status];
+  return (
+    <span
+      style={{
+        background: style.bg,
+        color: style.color,
+        borderRadius: '999px',
+        padding: '0.15rem 0.5rem',
+        fontSize: '0.7rem',
+        fontWeight: 600,
+        textTransform: 'uppercase'
+      }}
+    >
+      {style.label}
+    </span>
+  );
+};
+
+const AttachmentImagePreview = ({ attachment }: { attachment: TicketAttachment | VisitAttachment }) => {
+  const blobRecord = useLiveQuery(() => db.attachmentBlobs.get(attachment.id), [attachment.id]);
+  const [localUrl, setLocalUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (attachment.status === 'READY' || !blobRecord?.blob) {
+      setLocalUrl((current) => {
+        if (current) {
+          URL.revokeObjectURL(current);
+        }
+        return null;
+      });
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(blobRecord.blob);
+    setLocalUrl((current) => {
+      if (current) {
+        URL.revokeObjectURL(current);
+      }
+      return objectUrl;
+    });
+
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, [blobRecord, attachment.status]);
+
+  const src = attachment.status === 'READY' ? attachment.url : localUrl ?? undefined;
+
+  if (!src) {
+    return (
+      <div
+        style={{
+          width: '100%',
+          height: '150px',
+          borderRadius: '4px',
+          border: '1px dashed #d1d5db',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#9ca3af',
+          fontSize: '0.85rem'
+        }}
+      >
+        Preview unavailable
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={attachment.displayName}
+      style={{
+        width: '100%',
+        height: '150px',
+        objectFit: 'cover',
+        borderRadius: '4px',
+        border: '1px solid #e5e7eb'
+      }}
+    />
+  );
+};
+
 export const TicketDetailPage = () => {
   const { ticketId } = useParams();
   const { user } = useAuth();
@@ -193,6 +295,8 @@ export const TicketDetailPage = () => {
   const queryClient = useQueryClient();
   const [notes, setNotes] = useState('');
   const [customFields, setCustomFields] = useState<Record<string, unknown>>({});
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const [retryingAttachmentId, setRetryingAttachmentId] = useState<string | null>(null);
 
   const ticketQueryKey = ['ticket', ticketId] as const;
 
@@ -280,22 +384,6 @@ export const TicketDetailPage = () => {
     }
   });
 
-  const uploadMutation = useMutation({
-    mutationFn: ({ visitId, file }: { visitId: string; file: File }) =>
-      uploadVisitAttachment(visitId, file),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ticket', ticketId] });
-    }
-  });
-
-  const ticketUploadMutation = useMutation({
-    mutationFn: ({ ticketId, file }: { ticketId: string; file: File }) =>
-      uploadTicketAttachment(ticketId, file),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ticket', ticketId] });
-    }
-  });
-
   const updateStatusMutation = useMutation({
     mutationFn: (status: string) => updateTicket(ticketId!, { status: status as any }),
     onSuccess: () => {
@@ -309,6 +397,75 @@ export const TicketDetailPage = () => {
       queryClient.invalidateQueries({ queryKey: ['ticket', ticketId] });
     }
   });
+
+  const attachmentUser = user
+    ? {
+        id: user.id,
+        displayName: user.displayName ?? user.email ?? 'You'
+      }
+    : null;
+
+  const handleTicketAttachmentChange = async (files: FileList | null) => {
+    if (!ticketId || !attachmentUser || !files || files.length === 0) {
+      return;
+    }
+
+    setAttachmentError(null);
+    try {
+      for (const file of Array.from(files)) {
+        await addTicketAttachmentOffline({
+          ticketId,
+          file,
+          user: attachmentUser
+        });
+      }
+
+      if (online) {
+        void runSyncOnce();
+      }
+    } catch (error) {
+      setAttachmentError(error instanceof Error ? error.message : 'Failed to add attachment');
+    }
+  };
+
+  const handleVisitAttachmentChange = async (visitId: string, files: FileList | null) => {
+    if (!ticketId || !attachmentUser || !files || files.length === 0) {
+      return;
+    }
+
+    setAttachmentError(null);
+    try {
+      for (const file of Array.from(files)) {
+        await addVisitAttachmentOffline({
+          ticketId,
+          visitId,
+          file,
+          user: attachmentUser
+        });
+      }
+
+      if (online) {
+        void runSyncOnce();
+      }
+    } catch (error) {
+      setAttachmentError(error instanceof Error ? error.message : 'Failed to add attachment');
+    }
+  };
+
+  const handleRetryAttachment = async (attachmentId: string) => {
+    setAttachmentError(null);
+    setRetryingAttachmentId(attachmentId);
+    try {
+      await retryAttachmentUpload({ attachmentId });
+      if (online) {
+        void runSyncOnce();
+      }
+    } catch (error) {
+      setAttachmentError(error instanceof Error ? error.message : 'Retry failed');
+    } finally {
+      setRetryingAttachmentId(null);
+    }
+  };
 
   const handleSubmitVisit = async (e: FormEvent) => {
     e.preventDefault();
@@ -710,27 +867,29 @@ export const TicketDetailPage = () => {
               background: '#0f766e',
               color: '#fff',
               borderRadius: '0.5rem',
-              cursor: 'pointer',
+              cursor: attachmentUser ? 'pointer' : 'not-allowed',
               fontSize: '0.875rem',
-              fontWeight: 500
+              fontWeight: 500,
+              opacity: attachmentUser ? 1 : 0.6
             }}
           >
             📎 Add Attachment
             <input
               type="file"
+              multiple
               style={{ display: 'none' }}
+              disabled={!attachmentUser}
               onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                ticketUploadMutation.mutate({ ticketId: ticket.id, file });
+                void handleTicketAttachmentChange(e.target.files);
                 e.target.value = '';
               }}
             />
           </label>
-          {ticketUploadMutation.isPending && (
-            <span style={{ marginLeft: '0.75rem', fontSize: '0.875rem', color: '#6b7280' }}>
-              Uploading...
-            </span>
+          <span style={{ marginLeft: '0.75rem', fontSize: '0.8rem', color: '#6b7280' }}>
+            Files sync automatically when you're back online.
+          </span>
+          {attachmentError && (
+            <p style={{ color: '#dc2626', margin: '0.5rem 0 0', fontSize: '0.8rem' }}>{attachmentError}</p>
           )}
         </div>
 
@@ -751,25 +910,23 @@ export const TicketDetailPage = () => {
                   }}
                 >
                   {imageAttachments.map((att) => (
-                    <div key={att.id} style={{ textAlign: 'center' }}>
-                      <a
-                        href={att.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ textDecoration: 'none', display: 'block' }}
-                      >
-                        <img
-                          src={att.url}
-                          alt={att.displayName}
-                          style={{
-                            width: '100%',
-                            height: '150px',
-                            objectFit: 'cover',
-                            borderRadius: '4px',
-                            border: '1px solid #e5e7eb'
-                          }}
-                        />
-                      </a>
+                    <div
+                      key={att.id}
+                      style={{
+                        textAlign: 'center',
+                        background: '#fff',
+                        border: '1px solid #f3f4f6',
+                        borderRadius: '0.5rem',
+                        padding: '0.5rem',
+                        position: 'relative'
+                      }}
+                    >
+                      <div style={{ position: 'relative' }}>
+                        <AttachmentImagePreview attachment={att} />
+                        <div style={{ position: 'absolute', top: '0.5rem', left: '0.5rem' }}>
+                          <AttachmentStatusBadge status={att.status} />
+                        </div>
+                      </div>
                       <div
                         style={{
                           fontSize: '0.75rem',
@@ -781,8 +938,27 @@ export const TicketDetailPage = () => {
                         {att.displayName}
                       </div>
                       <div style={{ fontSize: '0.7rem', color: '#6b7280' }}>
-                        {(att.sizeBytes / 1024).toFixed(1)} KB
+                        {formatFileSize(att.sizeBytes)} · by {att.uploadedBy.displayName}
                       </div>
+                      {att.status === 'FAILED' && (
+                        <button
+                          type="button"
+                          onClick={() => handleRetryAttachment(att.id)}
+                          disabled={retryingAttachmentId === att.id}
+                          style={{
+                            marginTop: '0.5rem',
+                            fontSize: '0.7rem',
+                            padding: '0.2rem 0.75rem',
+                            borderRadius: '999px',
+                            border: '1px solid #f97316',
+                            background: '#fff7ed',
+                            color: '#c2410c',
+                            cursor: retryingAttachmentId === att.id ? 'wait' : 'pointer'
+                          }}
+                        >
+                          {retryingAttachmentId === att.id ? 'Retrying…' : 'Retry'}
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -792,20 +968,44 @@ export const TicketDetailPage = () => {
               {otherAttachments.length > 0 && (
                 <ul style={{ paddingLeft: '1.25rem', margin: 0 }}>
                   {otherAttachments.map((att) => (
-                    <li key={att.id} style={{ fontSize: '0.875rem', marginTop: '0.25rem' }}>
-                      <a
-                        href={att.url}
-                        download={att.displayName}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ color: '#2563eb', textDecoration: 'none' }}
-                      >
-                        {att.displayName}
-                      </a>{' '}
-                      <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>
-                        ({att.type.toLowerCase()}, {(att.sizeBytes / 1024).toFixed(1)} KB) by{' '}
-                        {att.uploadedBy.displayName}
-                      </span>
+                    <li key={att.id} style={{ fontSize: '0.875rem', marginTop: '0.5rem' }}>
+                      {att.status === 'READY' ? (
+                        <a
+                          href={att.url}
+                          download={att.displayName}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ color: '#2563eb', textDecoration: 'none', fontWeight: 600 }}
+                        >
+                          {att.displayName}
+                        </a>
+                      ) : (
+                        <span style={{ color: '#4b5563', fontWeight: 600 }}>{att.displayName}</span>
+                      )}
+                      <div style={{ fontSize: '0.8rem', color: '#6b7280', display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <span>
+                          {att.type.toLowerCase()}, {formatFileSize(att.sizeBytes)} · by {att.uploadedBy.displayName}
+                        </span>
+                        <AttachmentStatusBadge status={att.status} />
+                        {att.status === 'FAILED' && (
+                          <button
+                            type="button"
+                            onClick={() => handleRetryAttachment(att.id)}
+                            disabled={retryingAttachmentId === att.id}
+                            style={{
+                              fontSize: '0.75rem',
+                              padding: '0.15rem 0.5rem',
+                              borderRadius: '0.5rem',
+                              border: '1px solid #f97316',
+                              background: '#fff7ed',
+                              color: '#c2410c',
+                              cursor: retryingAttachmentId === att.id ? 'wait' : 'pointer'
+                            }}
+                          >
+                            {retryingAttachmentId === att.id ? 'Retrying…' : 'Retry'}
+                          </button>
+                        )}
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -893,36 +1093,48 @@ export const TicketDetailPage = () => {
                           marginTop: '0.5rem'
                         }}>
                           {imageAttachments.map((att) => (
-                            <div key={att.id} style={{ textAlign: 'center' }}>
-                              <a 
-                                href={att.url} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                style={{ textDecoration: 'none', display: 'block' }}
-                              >
-                                <img 
-                                  src={att.url} 
-                                  alt={att.displayName}
-                                  style={{ 
-                                    width: '100%', 
-                                    height: '150px',
-                                    objectFit: 'cover',
-                                    borderRadius: '4px',
-                                    border: '1px solid #e5e7eb'
-                                  }}
-                                />
-                              </a>
-                              <div style={{ 
-                                fontSize: '0.75rem', 
-                                marginTop: '0.25rem',
-                                color: '#374151',
-                                wordBreak: 'break-word'
-                              }}>
+                            <div
+                              key={att.id}
+                              style={{
+                                textAlign: 'center',
+                                background: '#fff',
+                                border: '1px solid #f3f4f6',
+                                borderRadius: '0.5rem',
+                                padding: '0.5rem',
+                                position: 'relative'
+                              }}
+                            >
+                              <div style={{ position: 'relative' }}>
+                                <AttachmentImagePreview attachment={att} />
+                                <div style={{ position: 'absolute', top: '0.5rem', left: '0.5rem' }}>
+                                  <AttachmentStatusBadge status={att.status} />
+                                </div>
+                              </div>
+                              <div style={{ fontSize: '0.75rem', marginTop: '0.25rem', color: '#374151', wordBreak: 'break-word' }}>
                                 {att.displayName}
                               </div>
                               <div style={{ fontSize: '0.7rem', color: '#6b7280' }}>
-                                {(att.sizeBytes / 1024).toFixed(1)} KB
+                                {formatFileSize(att.sizeBytes)} · by {att.uploadedBy.displayName}
                               </div>
+                              {att.status === 'FAILED' && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRetryAttachment(att.id)}
+                                  disabled={retryingAttachmentId === att.id}
+                                  style={{
+                                    marginTop: '0.5rem',
+                                    fontSize: '0.7rem',
+                                    padding: '0.2rem 0.75rem',
+                                    borderRadius: '999px',
+                                    border: '1px solid #f97316',
+                                    background: '#fff7ed',
+                                    color: '#c2410c',
+                                    cursor: retryingAttachmentId === att.id ? 'wait' : 'pointer'
+                                  }}
+                                >
+                                  {retryingAttachmentId === att.id ? 'Retrying…' : 'Retry'}
+                                </button>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -935,19 +1147,44 @@ export const TicketDetailPage = () => {
                           margin: imageAttachments.length > 0 ? '0.75rem 0 0.25rem 0' : '0.25rem 0'
                         }}>
                           {otherAttachments.map((att) => (
-                            <li key={att.id} style={{ fontSize: '0.875rem', marginTop: '0.25rem' }}>
-                              <a 
-                                href={att.url} 
-                                download={att.displayName}
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                style={{ color: '#2563eb', textDecoration: 'none' }}
-                              >
-                                {att.displayName}
-                              </a>{' '}
-                              <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>
-                                ({att.type.toLowerCase()}, {(att.sizeBytes / 1024).toFixed(1)} KB)
-                              </span>
+                            <li key={att.id} style={{ fontSize: '0.875rem', marginTop: '0.5rem' }}>
+                              {att.status === 'READY' ? (
+                                <a
+                                  href={att.url}
+                                  download={att.displayName}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{ color: '#2563eb', textDecoration: 'none', fontWeight: 600 }}
+                                >
+                                  {att.displayName}
+                                </a>
+                              ) : (
+                                <span style={{ color: '#4b5563', fontWeight: 600 }}>{att.displayName}</span>
+                              )}
+                              <div style={{ fontSize: '0.8rem', color: '#6b7280', display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                                <span>
+                                  {att.type.toLowerCase()}, {formatFileSize(att.sizeBytes)} · by {att.uploadedBy.displayName}
+                                </span>
+                                <AttachmentStatusBadge status={att.status} />
+                                {att.status === 'FAILED' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRetryAttachment(att.id)}
+                                    disabled={retryingAttachmentId === att.id}
+                                    style={{
+                                      fontSize: '0.75rem',
+                                      padding: '0.15rem 0.5rem',
+                                      borderRadius: '0.5rem',
+                                      border: '1px solid #f97316',
+                                      background: '#fff7ed',
+                                      color: '#c2410c',
+                                      cursor: retryingAttachmentId === att.id ? 'wait' : 'pointer'
+                                    }}
+                                  >
+                                    {retryingAttachmentId === att.id ? 'Retrying…' : 'Retry'}
+                                  </button>
+                                )}
+                              </div>
                             </li>
                           ))}
                         </ul>
@@ -962,18 +1199,17 @@ export const TicketDetailPage = () => {
                     + Add attachment
                     <input
                       type="file"
+                      multiple
                       style={{ display: 'none' }}
                       onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (!file) return;
-                        uploadMutation.mutate({ visitId: visit.id, file });
+                        void handleVisitAttachmentChange(visit.id, e.target.files);
                         e.target.value = '';
                       }}
                     />
                   </label>
-                  {uploadMutation.isPending && uploadMutation.variables?.visitId === visit.id && (
-                    <span style={{ marginLeft: '0.5rem', fontSize: '0.8rem', color: '#6b7280' }}>Uploading...</span>
-                  )}
+                  <span style={{ marginLeft: '0.5rem', fontSize: '0.75rem', color: '#6b7280' }}>
+                    Uploads sync automatically when online.
+                  </span>
                 </div>
               </div>
             ))}

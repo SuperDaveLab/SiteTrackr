@@ -6,6 +6,7 @@ CREATE TYPE "TemplateFieldType" AS ENUM ('TEXT', 'TEXTAREA', 'NUMBER', 'BOOLEAN'
 CREATE TYPE "AttachmentType" AS ENUM ('PHOTO', 'DOCUMENT', 'OTHER');
 CREATE TYPE "AssetStatus" AS ENUM ('ACTIVE', 'INACTIVE', 'RETIRED');
 CREATE TYPE "AccessLevel" AS ENUM ('VIEW', 'ADMIN');
+CREATE TYPE "AttachmentStatus" AS ENUM ('PENDING', 'READY', 'FAILED');
 
 -- CreateTables
 CREATE TABLE "Company" (
@@ -232,6 +233,7 @@ CREATE TABLE "Attachment" (
     "mimeType" TEXT NOT NULL,
     "sizeBytes" INTEGER NOT NULL,
     "storageKey" TEXT NOT NULL,
+    "status" "AttachmentStatus" NOT NULL DEFAULT 'PENDING',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 

@@ -271,6 +271,7 @@ model Attachment {
   mimeType         String
   sizeBytes        Int
   storageKey       String
+  status           AttachmentStatus @default(PENDING)
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
   company          Company        @relation(fields: [companyId], references: [id])
@@ -352,6 +353,12 @@ enum AttachmentType {
   PHOTO
   DOCUMENT
   OTHER
+}
+
+enum AttachmentStatus {
+  PENDING
+  READY
+  FAILED
 }
 
 enum AssetStatus {

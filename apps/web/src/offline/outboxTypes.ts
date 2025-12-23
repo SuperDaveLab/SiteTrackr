@@ -1,5 +1,5 @@
-export type OutboxEntity = 'ticket' | 'visit';
-export type OutboxOp = 'create' | 'update';
+export type OutboxEntity = 'ticket' | 'visit' | 'attachment' | 'attachmentUpload';
+export type OutboxOp = 'create' | 'update' | 'upload';
 
 export interface OutboxItem {
   id: string;
@@ -8,7 +8,7 @@ export interface OutboxItem {
   entity: OutboxEntity;
   entityId: string;
   op: OutboxOp;
-  payload: unknown;
+  payload: TicketUpdatePayload | VisitCreatePayload | AttachmentCreatePayload | AttachmentUploadPayload;
   baseUpdatedAt?: string;
   error?: string;
 }
@@ -30,4 +30,20 @@ export interface VisitCreatePayload {
   endedAt?: string | null;
   location?: Record<string, unknown>;
   readings?: Record<string, unknown>;
+}
+
+export interface AttachmentCreatePayload {
+  id: string;
+  scope: 'ticket' | 'visit';
+  ticketId: string;
+  visitId?: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+}
+
+export interface AttachmentUploadPayload {
+  id: string;
+  ticketId: string;
+  visitId?: string;
 }

@@ -2,6 +2,7 @@ import { apiClient } from '../../../lib/apiClient';
 
 export type TicketStatus = 'OPEN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 export type TicketPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
+export type AttachmentStatus = 'PENDING' | 'READY' | 'FAILED';
 
 export interface TicketListItem {
   id: string;
@@ -52,6 +53,7 @@ export interface VisitAttachment {
   mimeType: string;
   sizeBytes: number;
   url: string;
+  status: AttachmentStatus;
   uploadedBy: {
     id: string;
     displayName: string;
@@ -80,6 +82,7 @@ export interface TicketAttachment {
   mimeType: string;
   sizeBytes: number;
   url: string;
+  status: AttachmentStatus;
   uploadedBy: {
     id: string;
     displayName: string;
@@ -209,43 +212,3 @@ export const updateTicket = (ticketId: string, input: UpdateTicketInput) =>
 
 export const createVisitForTicket = (ticketId: string, input: CreateVisitInput) =>
   apiClient.post<TicketVisit>(`/tickets/${ticketId}/visits`, input);
-
-export const uploadVisitAttachment = async (visitId: string, file: File): Promise<VisitAttachment> => {
-  const formData = new FormData();
-  formData.append('file', file);
-
-  const accessToken = localStorage.getItem('accessToken');
-  const response = await fetch(`http://localhost:3001/api/v1/visits/${visitId}/attachments`, {
-    method: 'POST',
-    headers: {
-      ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {})
-    },
-    body: formData
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to upload attachment');
-  }
-
-  return response.json();
-};
-
-export const uploadTicketAttachment = async (ticketId: string, file: File): Promise<TicketAttachment> => {
-  const formData = new FormData();
-  formData.append('file', file);
-
-  const accessToken = localStorage.getItem('accessToken');
-  const response = await fetch(`http://localhost:3001/api/v1/tickets/${ticketId}/attachments`, {
-    method: 'POST',
-    headers: {
-      ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {})
-    },
-    body: formData
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to upload attachment');
-  }
-
-  return response.json();
-};

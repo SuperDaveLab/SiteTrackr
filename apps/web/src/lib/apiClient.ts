@@ -1,6 +1,7 @@
 import { ACCESS_TOKEN_KEY } from './storageKeys';
 
 const baseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001/api/v1';
+export const API_BASE_URL = baseUrl;
 
 const buildHeaders = (headers?: HeadersInit): Headers => {
   const token = localStorage.getItem(ACCESS_TOKEN_KEY);

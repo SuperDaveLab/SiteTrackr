@@ -317,6 +317,7 @@ export class TicketsController {
                 mimeType: true,
                 sizeBytes: true,
                 storageKey: true,
+                status: true,
                 createdAt: true,
                 uploadedBy: {
                   select: {
@@ -339,6 +340,7 @@ export class TicketsController {
             mimeType: true,
             sizeBytes: true,
             storageKey: true,
+            status: true,
             createdAt: true,
             uploadedBy: {
               select: {
@@ -450,6 +452,7 @@ export class TicketsController {
         sizeBytes: a.sizeBytes,
         url: `${urlBase}/${a.storageKey}`,
         uploadedBy: a.uploadedBy,
+        status: a.status,
         createdAt: a.createdAt.toISOString()
       }))
     }));
@@ -464,6 +467,7 @@ export class TicketsController {
       sizeBytes: a.sizeBytes,
       url: `${urlBase}/${a.storageKey}`,
       uploadedBy: a.uploadedBy,
+      status: a.status,
       createdAt: a.createdAt.toISOString()
     }));
 

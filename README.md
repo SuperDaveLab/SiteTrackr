@@ -19,7 +19,7 @@ A comprehensive field operations management platform for tracking work orders, s
 - **🔍 Advanced Search & Filtering** - Server-backed search and filtering across tickets and sites
 - **📊 Table Views** - Professional data tables with sortable columns, pagination, and column visibility controls
 - **🏢 Site Owner Management** - Organize sites by owners with granular access controls
-- **📱 Offline-First Architecture** - Dexie-powered IndexedDB cache plus sync runner for tickets, visits, and templates
+- **📱 Offline-First Architecture** - Dexie-powered IndexedDB cache plus sync runner for tickets, visits, templates, and attachment uploads
 - **🔐 Secure Authentication** - JWT-based authentication with role-based permissions (ADMIN, MANAGER, TECH)
 - **📥 Bulk Downloads** - Download all attachments as ZIP archives
 - **📤 Admin Import/Export** - CSV-based bulk import/export for Site Owners, Sites, Ticket Templates, and Tickets with custom field support
@@ -209,6 +209,7 @@ Define reusable templates with custom fields:
 - Unique display names to prevent filename conflicts
 - Thumbnail preview for images
 - Bulk download as ZIP
+- Offline capture queue with pending/failed status badges and automatic retries
 
 ### Role-Based Access Control
 - **ADMIN**: Full system access including import/export
@@ -271,7 +272,11 @@ http://localhost:3001/api/v1
 
 **Attachments:**
 - `POST /tickets/:ticketId/attachments` - Upload ticket-level attachment
+- `POST /tickets/:ticketId/attachments/metadata` - Create attachment metadata (idempotent/offline)
 - `GET /uploads/:companyId/:filename` - Retrieve file
+- `POST /visits/:visitId/attachments` - Upload visit attachment
+- `POST /visits/:visitId/attachments/metadata` - Create visit attachment metadata
+- `PUT /attachments/:id/content` - Upload attachment bytes for a pending metadata record
 
 **Admin Import/Export:**
 - `POST /admin/import/site-owners` - Import Site Owners from CSV
@@ -334,9 +339,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🐛 Known Issues
 
-- Offline sync not yet implemented
 - Mobile responsive design needs improvement
 - Performance optimization needed for large datasets
+- Attachment uploads limited to 25MB per file
 
 ## 📞 Support
 

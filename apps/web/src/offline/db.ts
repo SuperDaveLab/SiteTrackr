@@ -18,6 +18,14 @@ export interface TicketTemplateSummary {
   updatedAt: string;
 }
 
+export interface AttachmentBlobRecord {
+  id: string;
+  blob: Blob;
+  mimeType: string;
+  sizeBytes: number;
+  createdAt: number;
+}
+
 export interface VisitRecord extends TicketVisit {
   ticketId: string;
   location?: Record<string, unknown> | null;
@@ -36,6 +44,7 @@ class SiteTrackrOfflineDB extends Dexie {
   tickets!: Table<TicketListItem, string>;
   ticketDetails!: Table<TicketDetail, string>;
   visits!: Table<VisitRecord, string>;
+  attachmentBlobs!: Table<AttachmentBlobRecord, string>;
 
   constructor() {
     super('SiteTrackrOfflineDB');
@@ -56,6 +65,11 @@ class SiteTrackrOfflineDB extends Dexie {
     // v2 adds createdAt index so the admin sync queue can order entries chronologically
     this.version(2).stores({
       outbox: '&id, status, entity, entityId, createdAt'
+    });
+
+    // v3 introduces attachment blob storage for offline uploads
+    this.version(3).stores({
+      attachmentBlobs: '&id, createdAt'
     });
   }
 }
@@ -104,4 +118,8 @@ export const getLastBootstrapAt = async (): Promise<string | null> => {
 
 export const setLastBootstrapAt = async (value: string): Promise<void> => {
   await db.syncState.put({ key: BOOTSTRAP_KEY, value });
+};
+
+export const getLocalAttachmentBlob = async (attachmentId: string): Promise<AttachmentBlobRecord | undefined> => {
+  return db.attachmentBlobs.get(attachmentId);
 };

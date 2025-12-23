@@ -12,7 +12,7 @@ export const enqueueOutbox = async (item: {
   entity: OutboxEntity;
   entityId: string;
   op: OutboxOp;
-  payload: unknown;
+  payload: OutboxItem['payload'];
   baseUpdatedAt?: string;
 }): Promise<OutboxItem> => {
   const record: OutboxItem = {
@@ -33,6 +33,14 @@ export const listPendingOutbox = async (): Promise<OutboxItem[]> => {
 
 export const markSending = async (id: string): Promise<void> => {
   await db.outbox.update(id, { status: 'sending', error: undefined });
+};
+
+export const listPendingByEntity = async (entity: OutboxEntity): Promise<OutboxItem[]> => {
+  return db.outbox
+    .where('entity')
+    .equals(entity)
+    .and((item) => item.status === 'pending' || item.status === 'sending')
+    .sortBy('createdAt');
 };
 
 export const markFailed = async (id: string, error: string): Promise<void> => {
