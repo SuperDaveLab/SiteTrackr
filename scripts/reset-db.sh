@@ -41,6 +41,22 @@ if [[ -z "$DB_BASE_URL" || -z "$DB_NAME" ]]; then
   exit 1
 fi
 
+# Require explicit destructive confirmation to avoid accidental data loss
+cat <<'EOF'
+WARNING: This script will completely drop and recreate the target database.
+
+    Database: "$DB_NAME"
+    Connection: "$CLEAN_URL"
+
+All existing data will be permanently deleted. This action cannot be undone.
+EOF
+
+read -r -p "Type DELETE to proceed, or anything else to cancel: " CONFIRMATION
+if [[ "$CONFIRMATION" != "DELETE" ]]; then
+  echo "Aborted. Database reset was not performed."
+  exit 1
+fi
+
 psql "$DB_BASE_URL" -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$DB_NAME';" >/dev/null
 psql "$DB_BASE_URL" -c "DROP DATABASE IF EXISTS \"$DB_NAME\";"
 psql "$DB_BASE_URL" -c "CREATE DATABASE \"$DB_NAME\";"
