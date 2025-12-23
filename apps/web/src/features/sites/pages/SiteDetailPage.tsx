@@ -7,6 +7,9 @@ import { Input } from '../../../components/common/Input';
 import { fetchSiteById, updateSite } from '../api/sitesApi';
 import { useAuth } from '../../auth/hooks/useAuth';
 import { listSiteOwners } from '../../siteOwners/api/siteOwnersApi';
+import { cacheFirstQuery } from '../../../offline/cacheFirst';
+import { db } from '../../../offline/db';
+import { useOnlineStatus } from '../../../offline/useOnlineStatus';
 
 type SiteFormState = {
   name: string;
@@ -65,13 +68,46 @@ export const SiteDetailPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { online } = useOnlineStatus();
   const isAdmin = user?.role === 'ADMIN';
   const [customFields, setCustomFields] = useState<Record<string, unknown>>({});
   const [siteForm, setSiteForm] = useState<SiteFormState>(defaultSiteFormState);
 
+  const siteQueryKey = ['site', siteId] as const;
   const { data: site, isLoading, isError } = useQuery({
-    queryKey: ['site', siteId],
-    queryFn: () => fetchSiteById(siteId!)
+    queryKey: siteQueryKey,
+    queryFn: () =>
+      cacheFirstQuery({
+        queryKey: siteQueryKey,
+        online,
+        fetchRemote: () => fetchSiteById(siteId!),
+        readLocal: () => (siteId ? db.siteDetails.get(siteId) : Promise.resolve(undefined)),
+        writeLocal: async (detail) => {
+          await db.transaction('rw', db.siteDetails, db.sites, async () => {
+            await db.siteDetails.put(detail);
+            await db.sites.put({
+              id: detail.id,
+              name: detail.name,
+              code: detail.code ?? undefined,
+              marketName: detail.marketName ?? undefined,
+              customFields: detail.customFields ?? undefined,
+              city: detail.city ?? undefined,
+              state: detail.state ?? undefined,
+              county: detail.county ?? undefined,
+              equipmentType: detail.equipmentType ?? undefined,
+              towerType: detail.towerType ?? undefined,
+              createdAt: detail.createdAt,
+              updatedAt: detail.updatedAt,
+              owner: detail.owner
+                ? {
+                    id: detail.owner.id,
+                    name: detail.owner.name
+                  }
+                : null
+            });
+          });
+        }
+      })
   });
 
   const { data: siteOwners } = useQuery({
@@ -320,6 +356,9 @@ export const SiteDetailPage = () => {
         <div>
           <h2 style={{ margin: 0 }}>{site.name}</h2>
           {site.code && <p style={{ margin: '0.25rem 0 0', color: '#6b7280' }}>Site ID: {site.code}</p>}
+          {!online && (
+            <p style={{ margin: '0.25rem 0 0', color: '#b45309', fontSize: '0.85rem' }}>Offline view – edits require connectivity.</p>
+          )}
         </div>
         <Button onClick={handleNewTicket}>New Ticket</Button>
       </div>

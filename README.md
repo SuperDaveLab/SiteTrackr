@@ -19,7 +19,7 @@ A comprehensive field operations management platform for tracking work orders, s
 - **🔍 Advanced Search & Filtering** - Server-backed search and filtering across tickets and sites
 - **📊 Table Views** - Professional data tables with sortable columns, pagination, and column visibility controls
 - **🏢 Site Owner Management** - Organize sites by owners with granular access controls
-- **📱 Offline-First Architecture** - IndexedDB caching for offline access (in progress)
+- **📱 Offline-First Architecture** - Dexie-powered IndexedDB cache plus sync runner for tickets, visits, and templates
 - **🔐 Secure Authentication** - JWT-based authentication with role-based permissions (ADMIN, MANAGER, TECH)
 - **📥 Bulk Downloads** - Download all attachments as ZIP archives
 - **📤 Admin Import/Export** - CSV-based bulk import/export for Site Owners, Sites, Ticket Templates, and Tickets with custom field support
@@ -298,9 +298,9 @@ npm test
 ## 🚧 Roadmap
 
 - [x] Admin CSV Import/Export
-- [ ] Excel (XLSX) import/export support
+- [x] Excel (XLSX) import/export support
 - [ ] Mobile app (React Native)
-- [ ] Offline-first sync engine
+- [x] Offline-first sync engine (Phase 1-2 web cache + outbox)
 - [ ] Real-time notifications
 - [ ] Advanced reporting & analytics
 - [ ] Equipment maintenance scheduling

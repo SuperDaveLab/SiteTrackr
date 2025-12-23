@@ -9,6 +9,7 @@ export interface TicketListItem {
   status: TicketStatus;
   priority: TicketPriority;
   createdAt: string;
+  updatedAt: string;
   site: {
     id: string;
     name: string;

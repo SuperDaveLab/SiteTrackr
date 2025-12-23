@@ -10,9 +10,12 @@ import {
   SortingState,
   VisibilityState
 } from '@tanstack/react-table';
-import { fetchSites, SiteSummary } from '../api/sitesApi';
+import { fetchSites, SiteSummary, type PaginatedResponse } from '../api/sitesApi';
 import { useAuth } from '../../auth/hooks/useAuth';
 import { listSiteFieldDefinitions, SiteFieldDefinition } from '../../siteOwners/api/siteOwnersApi';
+import { cacheFirstQuery } from '../../../offline/cacheFirst';
+import { db } from '../../../offline/db';
+import { useOnlineStatus } from '../../../offline/useOnlineStatus';
 
 const buildCustomFieldColumnId = (key: string) => `customField_${key}`;
 
@@ -54,8 +57,66 @@ const formatCustomFieldValue = (value: unknown): string => {
   }
 };
 
+interface SitesCacheParams {
+  page: number;
+  pageSize: number;
+  search: string;
+  sortBy: 'createdAt' | 'updatedAt' | 'name' | 'code';
+  sortDir: 'asc' | 'desc';
+}
+
+const readSitesFromCache = async (params: SitesCacheParams): Promise<PaginatedResponse<SiteSummary> | undefined> => {
+  const rows = await db.sites.toArray();
+  if (rows.length === 0) {
+    return undefined;
+  }
+
+  const searchTerm = params.search.trim().toLowerCase();
+  let filtered = rows;
+
+  if (searchTerm) {
+    filtered = filtered.filter((site) => {
+      const name = site.name.toLowerCase();
+      const code = (site.code ?? '').toLowerCase();
+      const city = (site.city ?? '').toLowerCase();
+      const state = (site.state ?? '').toLowerCase();
+      return name.includes(searchTerm) || code.includes(searchTerm) || city.includes(searchTerm) || state.includes(searchTerm);
+    });
+  }
+
+  filtered = filtered.sort((a, b) => {
+    const field = params.sortBy;
+    const aValue = (a[field as keyof SiteSummary] ?? '') as string;
+    const bValue = (b[field as keyof SiteSummary] ?? '') as string;
+
+    if (field === 'createdAt' || field === 'updatedAt') {
+      const aTime = new Date(aValue).getTime();
+      const bTime = new Date(bValue).getTime();
+      return params.sortDir === 'asc' ? aTime - bTime : bTime - aTime;
+    }
+
+    const aStr = (aValue ?? '').toString().toLowerCase();
+    const bStr = (bValue ?? '').toString().toLowerCase();
+    return params.sortDir === 'asc' ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
+  });
+
+  const total = filtered.length;
+  const start = (params.page - 1) * params.pageSize;
+  const end = start + params.pageSize;
+
+  return {
+    data: filtered.slice(start, end),
+    meta: {
+      page: params.page,
+      pageSize: params.pageSize,
+      total
+    }
+  };
+};
+
 export const SitesListPage = () => {
   const { user } = useAuth();
+  const { online } = useOnlineStatus();
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
@@ -75,9 +136,22 @@ export const SitesListPage = () => {
     }
     return {};
   });
+  const siteFieldDefinitionsQueryKey = ['siteFieldDefinitions', 'all'] as const;
   const { data: siteFieldDefinitions } = useQuery<SiteFieldDefinition[]>({
-    queryKey: ['siteFieldDefinitions', 'all'],
-    queryFn: () => listSiteFieldDefinitions()
+    queryKey: siteFieldDefinitionsQueryKey,
+    queryFn: () =>
+      cacheFirstQuery({
+        queryKey: siteFieldDefinitionsQueryKey,
+        online,
+        fetchRemote: () => listSiteFieldDefinitions(),
+        readLocal: async () => {
+          const defs = await db.siteFieldDefinitions.toArray();
+          return defs.length ? defs : undefined;
+        },
+        writeLocal: async (defs) => {
+          await db.siteFieldDefinitions.bulkPut(defs);
+        }
+      })
   });
   const customFieldDefinitions = siteFieldDefinitions ?? [];
 
@@ -104,15 +178,32 @@ export const SitesListPage = () => {
     return () => clearTimeout(timer);
   }, [searchInput]);
 
+  const sitesQueryKey = ['sites', { page, pageSize, search, sortBy, sortDir }] as const;
   const { data, isLoading } = useQuery({
-    queryKey: ['sites', { page, pageSize, search, sortBy, sortDir }],
+    queryKey: sitesQueryKey,
     queryFn: () =>
-      fetchSites({
-        page,
-        pageSize,
-        search: search || undefined,
-        sortBy,
-        sortDir
+      cacheFirstQuery({
+        queryKey: sitesQueryKey,
+        online,
+        fetchRemote: () =>
+          fetchSites({
+            page,
+            pageSize,
+            search: search || undefined,
+            sortBy,
+            sortDir
+          }),
+        readLocal: () =>
+          readSitesFromCache({
+            page,
+            pageSize,
+            search,
+            sortBy,
+            sortDir
+          }),
+        writeLocal: async (response) => {
+          await db.sites.bulkPut(response.data);
+        }
       }),
     placeholderData: keepPreviousData
   });
@@ -298,7 +389,12 @@ export const SitesListPage = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-      <h2 style={{ margin: 0 }}>Sites</h2>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <h2 style={{ margin: 0 }}>Sites</h2>
+        {!online && (
+          <span style={{ fontSize: '0.8rem', color: '#b45309' }}>Offline cache shown – new site updates will sync later.</span>
+        )}
+      </div>
 
       {/* Search and Filters */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', background: '#fff', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #e5e7eb' }}>

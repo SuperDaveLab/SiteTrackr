@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../features/auth/hooks/useAuth';
-import { useOnlineStatus } from '../../lib/hooks/useOnlineStatus';
+import { SyncStatusBadge } from '../../offline/SyncStatusBadge';
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: '📊', roles: ['ADMIN', 'DISPATCHER', 'TECH'] },
@@ -13,13 +13,13 @@ const adminNavItems = [
   { path: '/admin/templates', label: 'Templates', icon: '📋', roles: ['ADMIN'] },
   { path: '/admin/site-owners', label: 'Site Owners', icon: '🏢', roles: ['ADMIN'] },
   { path: '/admin/users', label: 'Users', icon: '👥', roles: ['ADMIN'] },
-  { path: '/admin/import-export', label: 'Import/Export', icon: '📥', roles: ['ADMIN'] }
+  { path: '/admin/import-export', label: 'Import/Export', icon: '📥', roles: ['ADMIN'] },
+  { path: '/admin/sync-queue', label: 'Sync Queue', icon: '🔁', roles: ['ADMIN'] }
 ];
 
 export const AppLayout = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const isOnline = useOnlineStatus();
   const initials = user?.displayName?.slice(0, 2).toUpperCase() ?? user?.email?.slice(0, 2).toUpperCase() ?? 'ST';
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -87,7 +87,9 @@ export const AppLayout = () => {
           </button>
           <div>
             <strong style={{ letterSpacing: '0.08em' }}>SiteTrackr</strong>
-            <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>{isOnline ? 'Online' : 'Offline'}</div>
+            <div style={{ marginTop: '0.25rem' }}>
+              <SyncStatusBadge />
+            </div>
           </div>
         </div>
         <div style={{ position: 'relative' }} ref={profileMenuRef}>

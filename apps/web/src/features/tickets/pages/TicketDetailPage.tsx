@@ -1,12 +1,17 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card } from '../../../components/common/Card';
 import { Button } from '../../../components/common/Button';
 import { Input } from '../../../components/common/Input';
-import { fetchTicketById, createVisitForTicket, updateTicket, uploadVisitAttachment, uploadTicketAttachment } from '../api/ticketsApi';
+import { fetchTicketById, createVisitForTicket, updateTicket, uploadVisitAttachment, uploadTicketAttachment, type TicketStatus, type TicketPriority } from '../api/ticketsApi';
 import { fetchTemplateById } from '../../templates/api/templatesApi';
 import { groupTemplateFields } from '../utils/groupTemplateFields';
+import { useAuth } from '../../auth/hooks/useAuth';
+import { cacheFirstQuery } from '../../../offline/cacheFirst';
+import { db } from '../../../offline/db';
+import { useOnlineStatus } from '../../../offline/useOnlineStatus';
+import { createVisitOffline, updateTicketOffline } from '../../../offline/mutations';
 
 const renderField = (field: { key: string; label: string; type: string; required: boolean; config?: Record<string, unknown> | null }, value: unknown, onChange: (value: unknown) => void) => {
   const baseStyle = {
@@ -183,28 +188,82 @@ const formatFieldValue = (field: { type: string; config?: Record<string, unknown
 
 export const TicketDetailPage = () => {
   const { ticketId } = useParams();
+  const { user } = useAuth();
+  const { online } = useOnlineStatus();
   const queryClient = useQueryClient();
   const [notes, setNotes] = useState('');
   const [customFields, setCustomFields] = useState<Record<string, unknown>>({});
 
+  const ticketQueryKey = ['ticket', ticketId] as const;
+
   const { data: ticket, isLoading, isError } = useQuery({
-    queryKey: ['ticket', ticketId],
-    queryFn: () => fetchTicketById(ticketId!),
+    queryKey: ticketQueryKey,
+    queryFn: () =>
+      cacheFirstQuery({
+        queryKey: ticketQueryKey,
+        online,
+        fetchRemote: () => fetchTicketById(ticketId!),
+        readLocal: () => (ticketId ? db.ticketDetails.get(ticketId) : Promise.resolve(undefined)),
+        writeLocal: async (detail) => {
+          await db.transaction('rw', db.ticketDetails, db.tickets, db.visits, async () => {
+            await db.ticketDetails.put(detail);
+            await db.tickets.put({
+              id: detail.id,
+              summary: detail.summary,
+              status: detail.status,
+              priority: detail.priority,
+              createdAt: detail.createdAt,
+              updatedAt: detail.updatedAt,
+              site: detail.site,
+              asset: detail.asset ?? null,
+              template: detail.template
+            });
+            if (detail.visits && detail.visits.length > 0) {
+              await db.visits.bulkPut(
+                detail.visits.map((visit) => ({
+                  ...visit,
+                  ticketId: detail.id
+                }))
+              );
+            }
+          });
+        }
+      }),
     enabled: Boolean(ticketId)
   });
 
+  const templateId = ticket?.template.id;
+  const templateQueryKey = ['template', templateId] as const;
+
   const { data: template } = useQuery({
-    queryKey: ['template', ticket?.template.id],
-    queryFn: () => fetchTemplateById(ticket!.template.id),
-    enabled: Boolean(ticket?.template.id)
+    queryKey: templateQueryKey,
+    queryFn: () =>
+      cacheFirstQuery({
+        queryKey: templateQueryKey,
+        online,
+        fetchRemote: () => fetchTemplateById(templateId!),
+        readLocal: () => (templateId ? db.ticketTemplateDetails.get(templateId) : Promise.resolve(undefined)),
+        writeLocal: async (value) => {
+          await db.transaction('rw', db.ticketTemplateDetails, db.ticketTemplates, async () => {
+            await db.ticketTemplateDetails.put(value);
+            await db.ticketTemplates.put({
+              id: value.id,
+              name: value.name,
+              code: value.code,
+              isActive: value.isActive,
+              updatedAt: value.updatedAt
+            });
+          });
+        }
+      }),
+    enabled: Boolean(templateId)
   });
 
-  // Initialize custom fields when ticket loads
-  useState(() => {
+  useEffect(() => {
     if (ticket?.customFields) {
       setCustomFields(ticket.customFields);
     }
-  });
+  }, [ticket?.customFields]);
 
   const createVisitMutation = useMutation({
     mutationFn: (input: { notes?: string }) => createVisitForTicket(ticketId!, input),
@@ -251,9 +310,58 @@ export const TicketDetailPage = () => {
     }
   });
 
-  const handleSubmitVisit = (e: FormEvent) => {
+  const handleSubmitVisit = async (e: FormEvent) => {
     e.preventDefault();
+    if (!ticketId) {
+      return;
+    }
+
+    if (!online) {
+      if (!user) {
+        return;
+      }
+      await createVisitOffline({
+        ticketId,
+        visitDraft: { notes: notes || undefined },
+        technician: {
+          id: user.id,
+          displayName: user.displayName ?? user.email ?? 'You'
+        }
+      });
+      setNotes('');
+      return;
+    }
+
     createVisitMutation.mutate({ notes: notes || undefined });
+  };
+
+  const handleCustomFieldsSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!ticketId || !ticket) {
+      return;
+    }
+
+    if (!online) {
+      void updateTicketOffline({
+        ticketId,
+        patch: { customFields },
+        baseUpdatedAt: ticket.updatedAt
+      });
+      return;
+    }
+
+    updateFieldsMutation.mutate(customFields);
+  };
+
+  const applyOfflineTicketPatch = (patch: Parameters<typeof updateTicketOffline>[0]['patch']) => {
+    if (!ticketId || !ticket) {
+      return;
+    }
+    void updateTicketOffline({
+      ticketId,
+      patch,
+      baseUpdatedAt: ticket.updatedAt
+    });
   };
 
   if (isLoading) {
@@ -299,7 +407,14 @@ export const TicketDetailPage = () => {
             </label>
             <select
               value={ticket.status}
-              onChange={(e) => updateStatusMutation.mutate(e.target.value)}
+              onChange={(e) => {
+                const nextStatus = e.target.value as TicketStatus;
+                if (!online) {
+                  applyOfflineTicketPatch({ status: nextStatus });
+                } else {
+                  updateStatusMutation.mutate(nextStatus);
+                }
+              }}
               disabled={updateStatusMutation.isPending}
               style={{
                 padding: '0.5rem 0.75rem',
@@ -323,7 +438,14 @@ export const TicketDetailPage = () => {
             </label>
             <select
               value={ticket.priority}
-              onChange={(e) => updatePriorityMutation.mutate(e.target.value)}
+              onChange={(e) => {
+                const nextPriority = e.target.value as TicketPriority;
+                if (!online) {
+                  applyOfflineTicketPatch({ priority: nextPriority });
+                } else {
+                  updatePriorityMutation.mutate(nextPriority);
+                }
+              }}
               disabled={updatePriorityMutation.isPending}
               style={{
                 padding: '0.5rem 0.75rem',
@@ -520,10 +642,7 @@ export const TicketDetailPage = () => {
 
       {/* Editable Custom Fields */}
       {template && template.fields.length > 0 && (
-        <form onSubmit={(e) => {
-          e.preventDefault();
-          updateFieldsMutation.mutate(customFields);
-        }} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <form onSubmit={handleCustomFieldsSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {groupTemplateFields(template.fields).map((group) => (
             <Card key={group.sectionName}>
               <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>{group.sectionName}</h3>

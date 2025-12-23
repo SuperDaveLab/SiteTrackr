@@ -11,8 +11,11 @@ import {
   VisibilityState
 } from '@tanstack/react-table';
 import { Button } from '../../../components/common/Button';
-import { listTickets, TicketListItem, TicketStatus } from '../api/ticketsApi';
+import { listTickets, TicketListItem, TicketStatus, type PaginatedTicketsResponse } from '../api/ticketsApi';
 import { useAuth } from '../../auth/hooks/useAuth';
+import { cacheFirstQuery } from '../../../offline/cacheFirst';
+import { db } from '../../../offline/db';
+import { useOnlineStatus } from '../../../offline/useOnlineStatus';
 
 const statusColors: Record<TicketStatus, string> = {
   OPEN: '#3b82f6',
@@ -28,8 +31,62 @@ const priorityColors: Record<string, string> = {
   URGENT: '#dc2626'
 };
 
+interface TicketsCacheParams {
+  page: number;
+  pageSize: number;
+  search: string;
+  status?: TicketStatus;
+  sortBy: 'createdAt' | 'updatedAt';
+  sortDir: 'asc' | 'desc';
+}
+
+const readTicketsFromCache = async (params: TicketsCacheParams): Promise<PaginatedTicketsResponse | undefined> => {
+  const all = await db.tickets.toArray();
+  if (all.length === 0) {
+    return undefined;
+  }
+
+  const searchTerm = params.search.trim().toLowerCase();
+  let filtered = all;
+
+  if (params.status) {
+    filtered = filtered.filter((ticket) => ticket.status === params.status);
+  }
+
+  if (searchTerm) {
+    filtered = filtered.filter((ticket) => {
+      const summaryMatch = ticket.summary.toLowerCase().includes(searchTerm);
+      const siteCode = ticket.site?.code?.toLowerCase() ?? '';
+      const siteName = ticket.site?.name?.toLowerCase() ?? '';
+      return summaryMatch || siteCode.includes(searchTerm) || siteName.includes(searchTerm);
+    });
+  }
+
+  filtered = filtered.sort((a, b) => {
+    const aValue = params.sortBy === 'updatedAt' ? a.updatedAt : a.createdAt;
+    const bValue = params.sortBy === 'updatedAt' ? b.updatedAt : b.createdAt;
+    const aTime = new Date(aValue).getTime();
+    const bTime = new Date(bValue).getTime();
+    return params.sortDir === 'asc' ? aTime - bTime : bTime - aTime;
+  });
+
+  const total = filtered.length;
+  const start = (params.page - 1) * params.pageSize;
+  const end = start + params.pageSize;
+
+  return {
+    data: filtered.slice(start, end),
+    meta: {
+      page: params.page,
+      pageSize: params.pageSize,
+      total
+    }
+  };
+};
+
 export const TicketsListPage = () => {
   const { user } = useAuth();
+  const { online } = useOnlineStatus();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [page, setPage] = useState(1);
@@ -85,16 +142,35 @@ export const TicketsListPage = () => {
     }
   }, [statusFilter, setSearchParams]);
 
+  const ticketQueryKey = ['tickets', { page, pageSize, search, sortBy, sortDir, status: statusFilter }] as const;
+
   const { data, isLoading } = useQuery({
-    queryKey: ['tickets', { page, pageSize, search, sortBy, sortDir, status: statusFilter }],
+    queryKey: ticketQueryKey,
     queryFn: () =>
-      listTickets({
-        page,
-        pageSize,
-        search: search || undefined,
-        sortBy,
-        sortDir,
-        status: statusFilter
+      cacheFirstQuery({
+        queryKey: ticketQueryKey,
+        online,
+        fetchRemote: () =>
+          listTickets({
+            page,
+            pageSize,
+            search: search || undefined,
+            sortBy,
+            sortDir,
+            status: statusFilter
+          }),
+        readLocal: () =>
+          readTicketsFromCache({
+            page,
+            pageSize,
+            search,
+            status: statusFilter,
+            sortBy,
+            sortDir
+          }),
+        writeLocal: async (response) => {
+          await db.tickets.bulkPut(response.data);
+        }
       }),
     placeholderData: keepPreviousData
   });
@@ -226,7 +302,12 @@ export const TicketsListPage = () => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-        <h2 style={{ margin: 0 }}>Tickets</h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <h2 style={{ margin: 0 }}>Tickets</h2>
+          {!online && (
+            <span style={{ fontSize: '0.8rem', color: '#b45309' }}>Offline cache shown – new changes will sync later.</span>
+          )}
+        </div>
         <Link to="/tickets/new" style={{ textDecoration: 'none' }}>
           <Button fullWidth={false}>+ New Ticket</Button>
         </Link>
