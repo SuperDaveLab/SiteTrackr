@@ -24,6 +24,7 @@ A comprehensive field operations management platform for tracking work orders, s
 - **📥 Bulk Downloads** - Download all attachments as ZIP archives
 - **📤 Admin Import/Export** - CSV-based bulk import/export for Site Owners, Sites, Ticket Templates, and Tickets with custom field support
 - **🎨 Company Branding** - Token-based theming with preset palettes, dark mode toggle, and tenant-specific logos
+- **🗺 Map View** - Leaflet-powered ticket map with live bounding-box filtering, owner/template filters, clustering, hover previews, and click-to-pin popups for rapid situational awareness
 
 ## 🛠️ Tech Stack
 

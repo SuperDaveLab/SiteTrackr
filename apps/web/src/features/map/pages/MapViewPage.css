@@ -1,0 +1,245 @@
+.map-view-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.map-view-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  z-index: 2;
+  background: var(--page-bg, #f8fafc);
+}
+
+.map-view-header h1 {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.map-view-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.map-view-chip {
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  background: #edf2ff;
+  color: #1e1b4b;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.map-view-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) 1fr;
+  gap: 1.75rem;
+  align-items: start;
+}
+
+@media (max-width: 960px) {
+  .map-view-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.map-filter-panel {
+  background: linear-gradient(180deg, #0f172a, #111827);
+  color: #e0f2fe;
+  border-radius: 1.25rem;
+  padding: 1.5rem;
+  box-shadow: 0 25px 45px rgba(15, 23, 42, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  position: sticky;
+  top: 1rem;
+}
+
+.map-filter-panel h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.map-filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.map-filter-label {
+  font-size: 0.9rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(226, 232, 240, 0.9);
+}
+
+.map-filter-scroll {
+  max-height: 200px;
+  overflow-y: auto;
+  padding-right: 0.35rem;
+}
+
+.map-filter-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  line-height: 1.35;
+  padding: 0.35rem 0;
+}
+
+.map-filter-option input {
+  transform: scale(1.05);
+  margin-top: 0.2rem;
+}
+
+.map-filter-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.map-filter-button {
+  border: none;
+  border-radius: 999px;
+  padding: 0.5rem 1.25rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.map-filter-button.primary {
+  background: #f97316;
+  color: #fff7ed;
+}
+
+.map-filter-button.secondary {
+  background: rgba(248, 250, 252, 0.15);
+  color: #e0f2fe;
+}
+
+.map-filter-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.map-view-map {
+  position: relative;
+  background: #fff;
+  border-radius: 1.5rem;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.25);
+  min-height: 640px;
+  height: clamp(480px, 70vh, 900px);
+  overflow: hidden;
+  z-index: 0;
+  isolation: isolate;
+}
+
+.map-view-map .leaflet-container {
+  height: 100%;
+  width: 100%;
+}
+
+.map-loading-indicator {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(15, 23, 42, 0.8);
+  color: #f8fafc;
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.map-empty-note {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 23, 42, 0.85);
+  color: #f8fafc;
+  padding: 0.6rem 1.25rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  z-index: 400;
+}
+
+.map-error-banner {
+  position: absolute;
+  bottom: 1rem;
+  left: 1rem;
+  right: 1rem;
+  background: rgba(220, 38, 38, 0.95);
+  color: #fff7ed;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.9rem;
+  z-index: 500;
+}
+
+.marker-popup {
+  min-width: 220px;
+}
+
+.marker-popup h3 {
+  margin: 0 0 0.25rem 0;
+  font-size: 1rem;
+}
+
+.marker-popup .popup-meta {
+  font-size: 0.85rem;
+  color: #475569;
+  margin-bottom: 0.4rem;
+}
+
+.marker-popup .popup-templates {
+  font-size: 0.8rem;
+  color: #0f172a;
+  margin-bottom: 0.4rem;
+}
+
+.marker-popup .popup-pill {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: #e0f2fe;
+  color: #0f172a;
+  font-weight: 600;
+  margin: 0.1rem;
+}
+
+.marker-popup .popup-pill.muted {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.marker-popup .popup-links {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.marker-popup .popup-links a {
+  flex: 1;
+  text-align: center;
+  text-decoration: none;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.4rem;
+  border-radius: 0.4rem;
+  color: #fff;
+  background: #2563eb;
+}
+
+.marker-popup .popup-links a:nth-child(2) {
+  background: #0ea5e9;
+}

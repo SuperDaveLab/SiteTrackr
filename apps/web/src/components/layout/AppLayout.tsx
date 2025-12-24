@@ -8,7 +8,8 @@ import './AppLayout.css';
 const navItems = [
   { path: '/', label: 'Dashboard', icon: '📊', roles: ['ADMIN', 'DISPATCHER', 'TECH'] },
   { path: '/tickets', label: 'Tickets', icon: '🎫', roles: ['ADMIN', 'DISPATCHER', 'TECH'] },
-  { path: '/sites', label: 'Sites', icon: '📍', roles: ['ADMIN', 'DISPATCHER', 'TECH'] }
+  { path: '/sites', label: 'Sites', icon: '📍', roles: ['ADMIN', 'DISPATCHER', 'TECH'] },
+  { path: '/map', label: 'Map View', icon: '🗺️', roles: ['ADMIN', 'DISPATCHER', 'TECH'] }
 ];
 
 const adminNavItems = [

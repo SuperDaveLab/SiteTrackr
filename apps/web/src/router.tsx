@@ -18,6 +18,7 @@ import { UserDetailPage } from './features/users/pages/UserDetailPage';
 import { UserCreatePage } from './features/users/pages/UserCreatePage';
 import { VisitDetailPage } from './features/visits/pages/VisitDetailPage';
 import { ProfilePage } from './features/profile/pages/ProfilePage';
+import { MapViewPage } from './features/map/pages/MapViewPage';
 import AdminImportExportPage from './features/admin/AdminImportExportPage';
 import SyncQueuePage from './features/admin/SyncQueuePage';
 import BrandingPage from './features/admin/BrandingPage';
@@ -45,6 +46,7 @@ export const router = createBrowserRouter([
       { index: true, element: <DashboardPage /> },
       { path: 'sites', element: <SitesListPage /> },
       { path: 'sites/:siteId', element: <SiteDetailPage /> },
+      { path: 'map', element: <MapViewPage /> },
       { path: 'assets', element: <AssetsListPage /> },
       { path: 'assets/:assetId', element: <AssetDetailPage /> },
       { path: 'tickets', element: <TicketsListPage /> },
